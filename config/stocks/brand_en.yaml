@@ -1,0 +1,41 @@
+lang: en
+direction: ltr
+font_family: Inter
+font_path: assets/fonts/Heebo-Bold.ttf       # Heebo covers Latin well — Inter swap-in v1.1
+font_path_regular: assets/fonts/Heebo-Regular.ttf
+
+ticker_card:
+  width: 480
+  height: 580
+  position: [40, 60]
+  background: "#0B1F3A"
+  background_opacity: 0.92
+  corner_radius: 24
+  accent_up: "#22C55E"
+  accent_down: "#EF4444"
+  text_primary: "#FFFFFF"
+  text_secondary: "#A8C3E8"
+
+captions:
+  font_size: 60
+  position_y_pct: 0.72
+  text_color: "#FFFFFF"
+  pill_color: "#000000"
+  pill_opacity: 0.55
+  pill_padding_x: 36
+  pill_padding_y: 22
+  pill_corner_radius: 18
+  max_lines: 2
+  max_chars_per_line: 30
+
+disclaimer:
+  text: "Educational content only. Not investment advice. Past performance does not guarantee future results."
+  font_size: 18
+  text_color: "#E5E7EB"
+  background: "#000000"
+  background_opacity: 0.7
+  position_y_pct: 0.96
+  height: 80
+
+cta:
+  text: "Follow for daily market moves"

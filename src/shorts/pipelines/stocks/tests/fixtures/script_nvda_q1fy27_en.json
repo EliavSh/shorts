@@ -1,0 +1,106 @@
+{
+  "lang": "en",
+  "format": "deep_dive_one_stock",
+  "title": "Nvidia beat earnings — and the stock dropped 3%",
+  "description_hashtags": [
+    "#NVDA",
+    "#Nvidia",
+    "#AI",
+    "#Earnings",
+    "#Stocks",
+    "#JensenHuang",
+    "#Semiconductors",
+    "#StockMarket"
+  ],
+  "tickers": [
+    {
+      "ticker": "NVDA",
+      "name": "Nvidia",
+      "change_pct": -3.0,
+      "price": 130.0,
+      "ohlc_30d": []
+    }
+  ],
+  "beats": [
+    {
+      "narration": "Nvidia just posted record earnings — and the stock dropped 3%.",
+      "caption": null,
+      "visual_tags": [
+        "nvidia",
+        "earnings",
+        "red"
+      ],
+      "role": "hook",
+      "ticker_focus": "NVDA",
+      "hook_pattern": "concrete_surprise"
+    },
+    {
+      "narration": "Q1 revenue hit $81.6 billion, up 85% from last year, with data center revenue nearly doubling.",
+      "caption": null,
+      "visual_tags": [
+        "revenue",
+        "datacenter"
+      ],
+      "role": "body",
+      "ticker_focus": "NVDA",
+      "hook_pattern": null
+    },
+    {
+      "narration": "Next quarter's guidance came in at $91 billion, above Wall Street's number. The beat just wasn't big enough — expectations were already priced in.",
+      "caption": null,
+      "visual_tags": [
+        "guidance",
+        "wallstreet"
+      ],
+      "role": "body",
+      "ticker_focus": "NVDA",
+      "hook_pattern": null
+    },
+    {
+      "narration": "CEO Jensen Huang said demand has gone parabolic, driven by agentic AI workloads running around the clock.",
+      "caption": null,
+      "visual_tags": [
+        "jensen",
+        "ai"
+      ],
+      "role": "body",
+      "ticker_focus": "NVDA",
+      "hook_pattern": null
+    },
+    {
+      "narration": "And Nvidia is now the only platform running every frontier model — OpenAI, Anthropic, Meta, Google Gemini, and xAI all live on its chips.",
+      "caption": null,
+      "visual_tags": [
+        "openai",
+        "anthropic",
+        "meta",
+        "google"
+      ],
+      "role": "body",
+      "ticker_focus": "NVDA",
+      "hook_pattern": null
+    },
+    {
+      "narration": "Its new Vera CPU also opens a $200 billion market, with $20 billion in CPU revenue expected this year alone.",
+      "caption": null,
+      "visual_tags": [
+        "vera",
+        "cpu"
+      ],
+      "role": "body",
+      "ticker_focus": "NVDA",
+      "hook_pattern": null
+    },
+    {
+      "narration": "When a perfect quarter still isn't enough, you know how high the bar has gotten. Follow for more.",
+      "caption": null,
+      "visual_tags": [
+        "follow",
+        "bar"
+      ],
+      "role": "cta",
+      "ticker_focus": "NVDA",
+      "hook_pattern": null
+    }
+  ]
+}

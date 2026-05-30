@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block body %}
+  <h2>קליפים בתור לבדיקה</h2>
+  {% if not items %}
+    <div class="empty">
+      אין עדיין קליפים.<br><br>
+      צור קליפ חדש בעזרת: <code>brawlshorts make-short &lt;url&gt;</code>
+    </div>
+  {% else %}
+    {% for item in items %}
+      {% set lv = latest_version_of(item) %}
+      <div class="card">
+        <div class="grid cols-2" style="align-items: start">
+          <div>
+            {% if lv %}
+              <video controls preload="metadata" src="/video/{{ item.run_id }}/v{{ lv.v }}"></video>
+            {% endif %}
+          </div>
+          <div>
+            <div style="display:flex; justify-content: space-between; align-items: center; gap: 12px">
+              <span class="badge {{ item.status }}">
+                {% if item.status == 'processing' %}🔄 מעבד גרסה חדשה...{% else %}✓ מוכן לבדיקה{% endif %}
+              </span>
+              <span class="muted">v{{ item.current_version }} • {{ item.versions|length }} גרסאות</span>
+            </div>
+            <h2 style="margin-top:10px">
+              <a href="/run/{{ item.run_id }}">{{ lv.title if lv else item.source_title }}</a>
+            </h2>
+            <div class="muted" style="font-size: 13px">
+              מקור:
+              <a href="{{ item.source_url }}" target="_blank">@{{ item.creator_handle }}</a> •
+              רגע: {{ item.moment_start_s }}ש׳→{{ item.moment_end_s }}ש׳ •
+              ביטחון: {{ '%.2f'|format(item.moment_confidence) }} •
+              תגובות: {{ item.comments|length }}
+            </div>
+            {% if lv %}
+              <p class="muted" style="margin-top:12px">
+                {{ lv.description[:240] }}{% if lv.description|length > 240 %}…{% endif %}
+              </p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endblock %}

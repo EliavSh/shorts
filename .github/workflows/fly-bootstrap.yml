@@ -1,0 +1,59 @@
+name: Bootstrap Fly app
+
+# Run this ONCE (Actions tab → "Bootstrap Fly app" → Run workflow) to create
+# the Fly app and its persistent data volume. Safe to re-run — both steps are
+# idempotent. After this, set the app's secrets in the Fly dashboard and use the
+# normal "Deploy to Fly.io" workflow for every release.
+#
+# Requires the GitHub repo secret FLY_API_TOKEN to be an org/personal token
+# (a deploy-only token cannot create apps or volumes).
+
+on:
+  workflow_dispatch:
+    inputs:
+      org:
+        description: "Fly organization slug (usually 'personal')"
+        required: true
+        default: personal
+      region:
+        description: "Primary region (matches fly.toml)"
+        required: true
+        default: fra
+      volume_size_gb:
+        description: "Data volume size in GB"
+        required: true
+        default: "5"
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Create app (if missing)
+        run: |
+          APP=$(grep -m1 '^app' fly.toml | cut -d'"' -f2)
+          echo "App from fly.toml: $APP"
+          if flyctl apps list | grep -qw "$APP"; then
+            echo "App '$APP' already exists — skipping."
+          else
+            flyctl apps create "$APP" --org "${{ inputs.org }}"
+          fi
+
+      - name: Create data volume (if missing)
+        run: |
+          APP=$(grep -m1 '^app' fly.toml | cut -d'"' -f2)
+          VOL=$(grep -m1 'source' fly.toml | cut -d'"' -f2)
+          echo "App=$APP Volume=$VOL"
+          if flyctl volumes list -a "$APP" | grep -qw "$VOL"; then
+            echo "Volume '$VOL' already exists — skipping."
+          else
+            flyctl volumes create "$VOL" -a "$APP" \
+              --region "${{ inputs.region }}" --size "${{ inputs.volume_size_gb }}" --yes
+          fi
+
+      - name: Done
+        run: echo "Bootstrap complete. Now set secrets in the Fly dashboard, then run 'Deploy to Fly.io'."

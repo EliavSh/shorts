@@ -1,0 +1,91 @@
+{
+  "lang": "en",
+  "format": "deep_dive_one_stock",
+  "title": "The AI Chip Stock You've Never Heard Of: Qnity Up 100%",
+  "description_hashtags": [
+    "#QNTY",
+    "#Qnity",
+    "#AIstocks",
+    "#semiconductors",
+    "#stockmarket",
+    "#investing"
+  ],
+  "tickers": [
+    {
+      "ticker": "QNTY",
+      "name": "Qnity Electronics",
+      "change_pct": 10.0,
+      "price": 58.0,
+      "ohlc_30d": []
+    }
+  ],
+  "beats": [
+    {
+      "narration": "There's a stock up 100% since November you've never heard of. It's called Qnity, ticker QNTY.",
+      "caption": null,
+      "visual_tags": [
+        "unknown stock",
+        "100 percent"
+      ],
+      "role": "hook",
+      "ticker_focus": "QNTY",
+      "hook_pattern": "unknown_reveal"
+    },
+    {
+      "narration": "Qnity was spun off from DuPont in November 2025, and it supplies the chemicals every advanced chip fab needs to actually make silicon work.",
+      "caption": null,
+      "visual_tags": [
+        "spinoff",
+        "dupont"
+      ],
+      "role": "body",
+      "ticker_focus": "QNTY",
+      "hook_pattern": null
+    },
+    {
+      "narration": "Photoresists, etch chemicals, deposition materials — TSMC, Samsung, and Intel are all customers.",
+      "caption": null,
+      "visual_tags": [
+        "tsmc",
+        "samsung",
+        "intel"
+      ],
+      "role": "body",
+      "ticker_focus": "QNTY",
+      "hook_pattern": null
+    },
+    {
+      "narration": "Q1 earnings just blew past expectations: $1.08 per share versus $0.92 consensus, and revenue hit $1.32 billion.",
+      "caption": null,
+      "visual_tags": [
+        "earnings beat",
+        "eps"
+      ],
+      "role": "body",
+      "ticker_focus": "QNTY",
+      "hook_pattern": null
+    },
+    {
+      "narration": "Even after doubling, Wall Street keeps hiking price targets. It's a hidden link in the AI-chip supply chain.",
+      "caption": null,
+      "visual_tags": [
+        "analysts",
+        "ai supply chain"
+      ],
+      "role": "body",
+      "ticker_focus": "QNTY",
+      "hook_pattern": null
+    },
+    {
+      "narration": "Follow for the small-cap names moving the AI trade before they hit the headlines.",
+      "caption": null,
+      "visual_tags": [
+        "follow",
+        "small cap"
+      ],
+      "role": "cta",
+      "ticker_focus": "QNTY",
+      "hook_pattern": null
+    }
+  ]
+}

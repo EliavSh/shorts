@@ -1,0 +1,58 @@
+{
+  "lang": "en",
+  "format": "two_story_pivot",
+  "title": "Nvidia up 1.2% on UAE chip deal — and TSMC is moving for the same reason",
+  "description_hashtags": ["#stocks", "#NVDA", "#TSM", "#AI", "#markets"],
+  "tickers": [
+    { "ticker": "NVDA", "name": "Nvidia",                "change_pct": 1.2 },
+    { "ticker": "TSM",  "name": "Taiwan Semiconductor",  "change_pct": 1.8 }
+  ],
+  "beats": [
+    {
+      "role": "hook",
+      "ticker_focus": "NVDA",
+      "narration": "Nvidia is up 1.2% in pre-market after the U.S. approved chip exports worth billions to the United Arab Emirates.",
+      "visual_tags": ["nvidia", "wallstreet"]
+    },
+    {
+      "role": "body",
+      "ticker_focus": "NVDA",
+      "narration": "The approval falls under the May AI agreement, designed to accelerate UAE data centers building advanced AI models.",
+      "visual_tags": ["datacenter", "ai", "cloud"]
+    },
+    {
+      "role": "body",
+      "ticker_focus": "NVDA",
+      "narration": "The deal covers up to 500,000 chips per year through 2030. In return, the UAE committed to large investments in the United States.",
+      "visual_tags": ["chips", "fab"]
+    },
+    {
+      "role": "pivot",
+      "narration": "But Nvidia isn't the only chipmaker moving today.",
+      "visual_tags": ["wallstreet"]
+    },
+    {
+      "role": "body",
+      "ticker_focus": "TSM",
+      "narration": "Taiwan Semiconductor is up 1.8% after reporting a sharp jump in Q3 revenue, above market forecasts.",
+      "visual_tags": ["tsmc", "fab", "cleanroom"]
+    },
+    {
+      "role": "body",
+      "ticker_focus": "TSM",
+      "narration": "The company manufactures chips for both Nvidia and Apple, riding massive orders for AI data centers and high-performance servers.",
+      "visual_tags": ["chips", "servers", "datacenter"]
+    },
+    {
+      "role": "body",
+      "ticker_focus": "TSM",
+      "narration": "Analysts say this cements TSMC's position as the backbone of the global chip industry and a key player in the AI race.",
+      "visual_tags": ["ai", "fab"]
+    },
+    {
+      "role": "cta",
+      "narration": "Follow for daily market moves and the connections behind them.",
+      "visual_tags": ["wallstreet", "nyse"]
+    }
+  ]
+}

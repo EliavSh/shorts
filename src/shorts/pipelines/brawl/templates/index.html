@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block body %}
+  <div class="card" style="background:#1c1f25">
+    <h2 style="margin-top:0">צור קליפ חדש</h2>
+    <form method="post" action="{{ url_prefix }}/generate" style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end">
+      <div style="flex:1; min-width:300px">
+        <label style="margin-top:0">קישור יוטיוב</label>
+        <input type="text" name="url" placeholder="https://www.youtube.com/watch?v=..." required style="width:100%" />
+      </div>
+      <div style="width:120px">
+        <label style="margin-top:0">התחלה (אופ׳)</label>
+        <input type="text" name="start_s" placeholder="1:30 או 90" style="width:100%" />
+      </div>
+      <div style="width:120px">
+        <label style="margin-top:0">סיום (אופ׳)</label>
+        <input type="text" name="end_s" placeholder="1:55 או 115" style="width:100%" />
+      </div>
+      <button class="primary" type="submit">צור קליפ</button>
+    </form>
+    <p class="muted" style="font-size:12px; margin:10px 0 0">
+      השאר את שדות הזמן ריקים כדי שהמערכת תמצא לבד את הרגע הכי טוב.
+      מלא התחלה+סיום (שניות או <code>mm:ss</code>) כדי לחתוך בדיוק איפה שתרצה.
+    </p>
+  </div>
+
+  {# ── Source-video library: long VODs (championship etc.) to clip from ── #}
+  <div class="card" style="background:#191f26">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap">
+      <h2 style="margin:0">ספריית מקורות ({{ library|length }})</h2>
+      <form method="post" action="{{ url_prefix }}/library/refresh" style="margin:0">
+        <button type="submit" class="btn">🔄 רענן מהגילוי האוטומטי</button>
+      </form>
+    </div>
+    <p class="muted" style="font-size:13px; margin:8px 0">
+      וידאו ארוך (משחקים שלמים, שידורי אליפות) שאפשר לחתוך ממנו קליפים. הצמד קישור ידנית או רענן מהגילוי.
+    </p>
+    <form method="post" action="{{ url_prefix }}/library/add" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px">
+      <input type="text" name="url" placeholder="הצמד URL של וידאו ארוך..." required style="flex:1; min-width:280px" />
+      <button class="btn" type="submit">הצמד לספרייה</button>
+    </form>
+    {% if library %}
+      <div style="display:flex; flex-direction:column; gap:8px">
+        {% for e in library %}
+          <div class="card" style="margin:0; padding:12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap">
+            <div style="flex:1; min-width:240px">
+              <a href="{{ e.url }}" target="_blank" style="color:var(--fg)">{{ e.title }}</a>
+              <div class="muted" style="font-size:12px; margin-top:3px">
+                {% if e.channel %}@{{ e.channel }} • {% endif %}{{ e.duration_label }} •
+                <span style="color:{{ '#ffd400' if e.source=='auto' else 'var(--muted)' }}">
+                  {{ 'גילוי אוטומטי' if e.source=='auto' else 'הוצמד ידנית' }}</span>
+              </div>
+            </div>
+            <form method="post" action="{{ url_prefix }}/library/generate"
+                  style="display:flex; gap:6px; align-items:center; margin:0">
+              <input type="hidden" name="url" value="{{ e.url }}" />
+              <input type="text" name="start_s" placeholder="התחלה" style="width:80px" />
+              <input type="text" name="end_s" placeholder="סיום" style="width:80px" />
+              <button class="primary" type="submit">צור קליפ</button>
+            </form>
+            <form method="post" action="{{ url_prefix }}/library/remove" style="margin:0">
+              <input type="hidden" name="video_id" value="{{ e.video_id }}" />
+              <button class="btn" type="submit" title="הסר" style="padding:8px 12px">✕</button>
+            </form>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="muted" style="font-size:13px">הספרייה ריקה — הצמד קישור או רענן מהגילוי.</div>
+    {% endif %}
+  </div>
+
+  {% if jobs %}
+    <div class="card" style="background:#1c1f25">
+      <h2 style="margin-top:0">משימות אחרונות ({{ jobs|length }})</h2>
+      <table style="width:100%; border-collapse: collapse; font-size:13px">
+        <thead style="color:var(--muted); text-align:right">
+          <tr>
+            <th style="padding:6px 8px">סטטוס</th>
+            <th style="padding:6px 8px">סוג</th>
+            <th style="padding:6px 8px">מטרה</th>
+            <th style="padding:6px 8px">נפתחה</th>
+            <th style="padding:6px 8px">הסתיימה</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for j in jobs %}
+            <tr style="border-top: 1px solid var(--border)">
+              <td style="padding:6px 8px">
+                {% if j.status == 'running' %}<span style="color:#f0b400">🔄 רץ</span>
+                {% elif j.status == 'done' %}<span style="color:var(--green)">✓ הסתיים</span>
+                {% else %}<span style="color:var(--red)">✗ נכשל</span>
+                {% endif %}
+              </td>
+              <td style="padding:6px 8px"><code>{{ j.kind }}</code></td>
+              <td style="padding:6px 8px; max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">
+                {{ j.label }}
+              </td>
+              <td style="padding:6px 8px; color:var(--muted)">{{ j.started_at }}</td>
+              <td style="padding:6px 8px; color:var(--muted)">{{ j.finished_at or '—' }}</td>
+            </tr>
+            {% if j.status == 'failed' and j.log_tail %}
+              <tr style="border-top: 1px solid var(--border)">
+                <td colspan="5" style="padding:6px 8px; background:#1a0e0e">
+                  <details>
+                    <summary style="color:var(--red); cursor:pointer">הצג שורות אחרונות מהלוג</summary>
+                    <pre style="font-size:11px; color:var(--muted); white-space:pre-wrap; margin:8px 0 0; direction:ltr; text-align:left">{{ j.log_tail }}</pre>
+                  </details>
+                </td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+      {% set any_running = jobs|selectattr('status','equalto','running')|list %}
+      {% if any_running %}
+        <script>
+          // Auto-refresh every 10s while jobs are running
+          setTimeout(() => window.location.reload(), 10000);
+        </script>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div style="display:flex; justify-content:space-between; align-items:baseline; margin-top:30px; gap:12px; flex-wrap:wrap">
+    <h2 style="margin:0">קליפים בתור לבדיקה ({{ items|length }})</h2>
+    {% if items %}
+      <span class="muted" style="font-size:13px">סמן ✓ על קליפים כדי לכתוב הערה אחת למספר קליפים יחד</span>
+    {% endif %}
+  </div>
+
+  {% if not items %}
+    <div class="empty">אין עדיין קליפים. הדבק URL של יוטיוב למעלה או צור מהספרייה.</div>
+  {% else %}
+    <div style="display:flex; flex-direction:column; gap:16px; margin-top:14px; padding-bottom:140px">
+      {% for item in items %}
+        {% set lv = latest_version_of(item) %}
+        <div class="card clip-card">
+          {# Video pinned to the start (right in RTL) #}
+          <div class="clip-video">
+            {% if lv %}
+              <video controls preload="metadata" src="{{ url_prefix }}/video/{{ item.run_id }}/v{{ lv.v }}"></video>
+            {% else %}
+              <div class="muted" style="aspect-ratio:9/16; display:flex; align-items:center; justify-content:center; background:#000; border-radius:8px">אין וידאו</div>
+            {% endif %}
+          </div>
+
+          {# Review controls flow after (left in RTL) #}
+          <div class="clip-main">
+            <div class="clip-head">
+              <label class="clip-select">
+                <input type="checkbox" class="sel" value="{{ item.run_id }}"
+                       {% if item.status != 'ready' %}disabled{% endif %} onchange="updateCount()">
+                סמן לביקורת מרובה
+              </label>
+              <span class="badge {{ item.status }}">
+                {% if item.status == 'processing' %}🔄 מעבד גרסה חדשה...
+                {% elif item.status == 'publishing' %}📤 מעלה ליוטיוב...
+                {% else %}✓ מוכן לבדיקה{% endif %}
+              </span>
+            </div>
+
+            <h2 style="margin-top:10px">
+              <a href="{{ url_prefix }}/run/{{ item.run_id }}">{{ lv.title if lv else item.source_title }}</a>
+            </h2>
+            <div class="muted" style="font-size:13px; margin-top:4px">
+              מקור: <a href="{{ item.source_url }}" target="_blank">@{{ item.creator_handle }}</a> •
+              רגע: {{ item.moment_start_s }}ש׳→{{ item.moment_end_s }}ש׳ •
+              ביטחון: {{ '%.2f'|format(item.moment_confidence) }} •
+              v{{ item.current_version }} • תגובות: {{ item.comments|length }}
+            </div>
+            {% if lv %}
+              <p class="muted" style="margin:10px 0 0">
+                {{ lv.description[:200] }}{% if lv.description|length > 200 %}…{% endif %}
+              </p>
+            {% endif %}
+
+            {# Per-clip inline review: write a note → regenerate this one clip #}
+            <form method="post" action="{{ url_prefix }}/run/{{ item.run_id }}/comment" class="clip-actions">
+              <textarea name="text" placeholder="הערה לקליפ הזה — למשל: התחל מה-hook עם שם הברולר, האט את הכתוביות..."
+                        {% if item.status != 'ready' %}disabled{% endif %}></textarea>
+              <button class="primary" type="submit" {% if item.status != 'ready' %}disabled{% endif %}>
+                שלח וצור גרסה
+              </button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    {# Floating bulk-review bar — slides up only when clips are selected #}
+    <form method="post" action="{{ url_prefix }}/bulk-comment" id="bulk-form" class="bulkbar">
+      <div class="bulkbar-inner">
+        <textarea name="text" placeholder="הערה כללית לכל הקליפים שנבחרו — כל אחד יקבל גרסה חדשה שמטמיעה אותה..."></textarea>
+        <div class="bb-side">
+          <span class="bb-count" id="sel-count">0 נבחרו</span>
+          <div style="display:flex; gap:6px; flex-wrap:wrap">
+            <button type="button" class="btn" onclick="toggleAll(true)" style="padding:7px 12px">סמן הכל</button>
+            <button type="button" class="btn" onclick="toggleAll(false)" style="padding:7px 12px">נקה</button>
+          </div>
+          <button class="primary" type="submit">שלח ויצור גרסאות</button>
+        </div>
+      </div>
+    </form>
+
+    <script>
+      const bar = document.getElementById('bulk-form');
+      function selected() { return [...document.querySelectorAll('.sel:checked')]; }
+      function toggleAll(on) {
+        document.querySelectorAll('.sel:not(:disabled)').forEach(c => c.checked = on);
+        updateCount();
+      }
+      function updateCount() {
+        const n = selected().length;
+        document.getElementById('sel-count').textContent = n + ' נבחרו';
+        bar.classList.toggle('open', n > 0);
+      }
+      bar.addEventListener('submit', (e) => {
+        const chosen = selected();
+        const txt = bar.querySelector('textarea[name=text]').value.trim();
+        if (chosen.length === 0 || !txt) {
+          e.preventDefault();
+          alert(chosen.length === 0 ? 'בחר לפחות קליפ אחד' : 'כתוב הערה לפני השליחה');
+          return;
+        }
+        // Inject the selected run_ids as hidden fields (checkboxes live in cards, outside this form).
+        bar.querySelectorAll('input[name=run_ids]').forEach(el => el.remove());
+        chosen.forEach(c => {
+          const h = document.createElement('input');
+          h.type = 'hidden'; h.name = 'run_ids'; h.value = c.value;
+          bar.appendChild(h);
+        });
+      });
+      updateCount();
+    </script>
+  {% endif %}
+{% endblock %}

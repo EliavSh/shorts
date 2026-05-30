@@ -1,0 +1,25 @@
+# Keep the Fly build context small and free of secrets / local state.
+.git
+.github
+.venv
+**/__pycache__
+*.py[cod]
+*.egg-info
+.pytest_cache
+.ruff_cache
+.mypy_cache
+
+# Runtime data + caches (mounted from a Fly volume at /app/data, never baked in)
+data/
+archive/
+
+# Secrets never go in the image — injected as Fly secrets at runtime
+.env
+.env.*
+secrets/
+
+.vscode
+.idea
+*.swp
+.DS_Store
+Thumbs.db

@@ -1,0 +1,93 @@
+{
+  "lang": "en",
+  "format": "deep_dive_one_stock",
+  "title": "Intuit Cuts 3,000 Jobs to Bet on AI",
+  "description_hashtags": [
+    "#INTU",
+    "#Intuit",
+    "#TurboTax",
+    "#QuickBooks",
+    "#AI",
+    "#Layoffs",
+    "#StockMarket",
+    "#Investing"
+  ],
+  "tickers": [
+    {
+      "ticker": "INTU",
+      "name": "Intuit",
+      "change_pct": -3.2,
+      "price": 620.0,
+      "ohlc_30d": []
+    }
+  ],
+  "beats": [
+    {
+      "narration": "Intuit just cut 3,000 jobs — 17% of the company — to refocus on AI.",
+      "caption": null,
+      "visual_tags": [
+        "layoffs",
+        "ai",
+        "headline"
+      ],
+      "role": "hook",
+      "ticker_focus": "INTU",
+      "hook_pattern": "numeric_punch"
+    },
+    {
+      "narration": "Intuit makes TurboTax, QuickBooks, and Mailchimp — used by half of all US small businesses.",
+      "caption": null,
+      "visual_tags": [
+        "products",
+        "scale"
+      ],
+      "role": "body",
+      "ticker_focus": "INTU",
+      "hook_pattern": null
+    },
+    {
+      "narration": "The cuts hit operations and support roles, but the company says it will hire back in AI and machine-learning positions.",
+      "caption": null,
+      "visual_tags": [
+        "restructure",
+        "hiring"
+      ],
+      "role": "body",
+      "ticker_focus": "INTU",
+      "hook_pattern": null
+    },
+    {
+      "narration": "Here's the irony: Intuit has spent two years selling AI productivity tools to its own small-business customers.",
+      "caption": null,
+      "visual_tags": [
+        "irony",
+        "ai-tools"
+      ],
+      "role": "body",
+      "ticker_focus": "INTU",
+      "hook_pattern": null
+    },
+    {
+      "narration": "Now it's using that same playbook on itself — and the stock dropped more than 3% on the news.",
+      "caption": null,
+      "visual_tags": [
+        "stock-drop",
+        "chart"
+      ],
+      "role": "body",
+      "ticker_focus": "INTU",
+      "hook_pattern": null
+    },
+    {
+      "narration": "Is this the start of AI-driven layoffs at every big software company? Follow for what moves next.",
+      "caption": null,
+      "visual_tags": [
+        "follow",
+        "cta"
+      ],
+      "role": "cta",
+      "ticker_focus": "INTU",
+      "hook_pattern": null
+    }
+  ]
+}

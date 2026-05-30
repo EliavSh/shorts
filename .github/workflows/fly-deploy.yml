@@ -1,0 +1,33 @@
+name: Deploy to Fly.io
+
+# Deploys the unified shorts dashboard to Fly.io.
+# Runs entirely in GitHub's cloud — nothing is installed on your PC.
+# The Docker image is built on Fly's remote builders (--remote-only), so the
+# runner needs no Docker either.
+#
+# One-time setup (all via the web, no CLI):
+#   1. Run the "Bootstrap Fly app" workflow once (Actions tab → Run workflow)
+#      to create the app + data volume.
+#   2. Set the app's runtime secrets in the Fly dashboard
+#      (your app → Secrets): ANTHROPIC_API_KEY, YOUTUBE_API_KEY, etc.
+#   3. Add FLY_API_TOKEN as a GitHub repo secret
+#      (Settings → Secrets and variables → Actions).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}   # also lets you trigger a deploy by hand
+
+concurrency:
+  group: fly-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

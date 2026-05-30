@@ -1,0 +1,43 @@
+# Fly.io deployment for the unified shorts review dashboard.
+#
+# No local CLI required — everything runs from GitHub Actions:
+#   1. Push this repo to GitHub.
+#   2. Create a Fly API token at https://fly.io/user/personal_access_tokens
+#      and add it as the GitHub repo secret FLY_API_TOKEN.
+#   3. Actions tab → run "Bootstrap Fly app" once (creates app + data volume).
+#   4. In the Fly dashboard (your app → Secrets), set the runtime secrets:
+#        ANTHROPIC_API_KEY, YOUTUBE_API_KEY,
+#        BRAWL_YOUTUBE_CLIENT_SECRET_PATH=/app/secrets/brawl_client.json
+#        BRAWL_YOUTUBE_TOKEN_PATH=/app/secrets/brawl_token.json
+#        STOCKS_YOUTUBE_CLIENT_SECRET_PATH=/app/secrets/stocks_client.json
+#        STOCKS_YOUTUBE_TOKEN_PATH=/app/secrets/stocks_token.json
+#   5. Every push to main auto-deploys via .github/workflows/fly-deploy.yml.
+
+app = "shorts-review"
+primary_region = "fra"   # Frankfurt — closest to Israel; switch to "iad"/"sjc" if elsewhere
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8000"
+
+[[mounts]]
+  source = "shorts_data"
+  destination = "/app/data"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  # Don't auto-stop — when a reviewer is in the middle of waiting for a regen
+  # we don't want the VM hibernating.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  # ffmpeg + Pillow + Claude vision frame analysis needs real RAM.
+  size = "performance-1x"
+  memory_mb = 2048
+  cpu_kind = "performance"
+  cpus = 1

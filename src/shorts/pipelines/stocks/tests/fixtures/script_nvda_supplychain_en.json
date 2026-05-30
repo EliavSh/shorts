@@ -1,0 +1,118 @@
+{
+  "lang": "en",
+  "format": "two_story_pivot",
+  "title": "Nvidia Just Bought Into a Glass Company — Here's Why",
+  "description_hashtags": [
+    "#NVDA",
+    "#Nvidia",
+    "#Corning",
+    "#GLW",
+    "#AI",
+    "#Stocks",
+    "#Investing",
+    "#Datacenter"
+  ],
+  "tickers": [
+    {
+      "ticker": "NVDA",
+      "name": "Nvidia",
+      "change_pct": 0.5,
+      "price": 130.0,
+      "ohlc_30d": []
+    },
+    {
+      "ticker": "GLW",
+      "name": "Corning",
+      "change_pct": 7.5,
+      "price": 58.0,
+      "ohlc_30d": []
+    }
+  ],
+  "beats": [
+    {
+      "narration": "$3.2 billion. That's what Nvidia just agreed to pump into a 174-year-old glass company.",
+      "caption": null,
+      "visual_tags": [
+        "money",
+        "deal"
+      ],
+      "role": "hook",
+      "ticker_focus": "NVDA",
+      "hook_pattern": "numeric_punch"
+    },
+    {
+      "narration": "Nvidia is taking an equity stake in Corning, the maker of specialty glass and fiber optics for AI datacenters.",
+      "caption": null,
+      "visual_tags": [
+        "nvidia",
+        "deal"
+      ],
+      "role": "body",
+      "ticker_focus": "NVDA",
+      "hook_pattern": null
+    },
+    {
+      "narration": "It's part of a bigger pattern — Nvidia's equity bets across the AI stack now top $40 billion for 2026.",
+      "caption": null,
+      "visual_tags": [
+        "ai",
+        "capex"
+      ],
+      "role": "body",
+      "ticker_focus": "NVDA",
+      "hook_pattern": null
+    },
+    {
+      "narration": "The strategy: lock in supply and make sure every supplier is building around Nvidia hardware.",
+      "caption": null,
+      "visual_tags": [
+        "strategy"
+      ],
+      "role": "body",
+      "ticker_focus": "NVDA",
+      "hook_pattern": null
+    },
+    {
+      "narration": "But the real winner this morning isn't Nvidia.",
+      "caption": null,
+      "visual_tags": [
+        "pivot"
+      ],
+      "role": "pivot",
+      "ticker_focus": null,
+      "hook_pattern": null
+    },
+    {
+      "narration": "Corning, ticker GLW, jumped 7.5% on the news — they make the fiber and glass substrates AI datacenters can't run without.",
+      "caption": null,
+      "visual_tags": [
+        "corning",
+        "rally"
+      ],
+      "role": "body",
+      "ticker_focus": "GLW",
+      "hook_pattern": null
+    },
+    {
+      "narration": "The cash accelerates Corning's capacity expansion for datacenter optics — exactly what Nvidia's customers need next.",
+      "caption": null,
+      "visual_tags": [
+        "fiber",
+        "growth"
+      ],
+      "role": "body",
+      "ticker_focus": "GLW",
+      "hook_pattern": null
+    },
+    {
+      "narration": "When Nvidia writes a check, the supplier rallies harder than Nvidia itself. Follow for more.",
+      "caption": null,
+      "visual_tags": [
+        "cta"
+      ],
+      "role": "cta",
+      "ticker_focus": null,
+      "hook_pattern": null
+    }
+  ]
+}

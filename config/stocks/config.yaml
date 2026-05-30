@@ -1,0 +1,14 @@
+video:
+  width: 1080
+  height: 1920
+  fps: 30
+  duration_target_s: 55
+  duration_max_s: 60
+
+pacing:
+  words_per_second: 2.5
+  max_words_per_caption_line: 7
+
+audio:
+  background_music_db: -20  # ducked under voice
+  voice_db: 0

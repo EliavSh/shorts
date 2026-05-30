@@ -1,0 +1,21 @@
+# Visual identity. Used by edit/captions.py and edit/hook.py later.
+colors:
+  primary: "#FFD400"     # Brawl-yellow
+  outline: "#0A0A0A"
+  accent: "#FF2E63"
+  bg_blur_tint: "#101820"
+
+fonts:
+  display: "Anton-Regular.ttf"   # drop into assets/fonts/
+  body: "Inter-Bold.ttf"
+
+captions:
+  style: "word_by_word_pop"      # word-by-word pop-in
+  size_px: 88
+  stroke_px: 6
+  highlight_color: "#FFD400"
+  emoji_chance: 0.15
+
+hook:
+  duration_s: 1.5
+  font_size_px: 110

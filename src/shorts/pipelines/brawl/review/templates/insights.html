@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}תובנות מצטברות{% endblock %}
+{% block body %}
+  <h2>תובנות מצטברות מההערות</h2>
+  <p class="muted">
+    כל הערה של בוחן מזוקקת לכלל מעשי על ידי Claude ונשמרת כאן.
+    כל הקליפים הבאים והגרסאות החדשות מקבלים את הרשימה הזו כקונטקסט,
+    כך שהמערכת לומדת מההערות לאורך זמן.
+  </p>
+  {% if not insights_file.insights %}
+    <div class="empty">אין עדיין תובנות. השאר הערה על קליפ ויופיעו כאן.</div>
+  {% else %}
+    <p class="muted" style="font-size:13px">עודכן לאחרונה: {{ insights_file.last_updated }}</p>
+    {% for ins in insights_file.insights|reverse %}
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px">
+          <div>
+            <strong>{{ ins.bullet }}</strong>
+            <div class="muted" style="font-size:12px; margin-top:6px">
+              קטגוריה: <code>{{ ins.category }}</code> •
+              מהריצה: <a href="/run/{{ ins.from_run }}">{{ ins.from_run }}</a> •
+              {{ ins.added_at }}
+            </div>
+            <div class="muted" style="font-size:12px; margin-top:6px; font-style: italic">
+              "{{ ins.source_comment }}"
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endblock %}

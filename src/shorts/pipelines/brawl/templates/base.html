@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{% block title %}ביקורת שורטס - ברול סטארס{% endblock %}</title>
+  <style>
+    :root {
+      --bg: #0e1116;
+      --card: #161b22;
+      --border: #30363d;
+      --fg: #e6edf3;
+      --muted: #7d8590;
+      --accent: #ffd400;
+      --green: #2ea043;
+      --red: #f85149;
+      --processing: #d29922;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font: 15px/1.55 "Segoe UI", "Heebo", "Assistant", system-ui, -apple-system, sans-serif;
+      direction: rtl;
+    }
+    header {
+      padding: 18px 28px;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    header h1 { margin: 0; font-size: 18px; }
+    header h1 span { color: var(--accent); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 24px 28px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+    .badge {
+      display: inline-block; font-size: 12px; padding: 3px 10px;
+      border-radius: 999px; font-weight: 600;
+    }
+    .badge.ready      { background: #033a16; color: #2ea043; }
+    .badge.processing {
+      background: #3a2a00; color: #f0b400;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse { 50% { opacity: 0.5; } }
+    .muted { color: var(--muted); }
+    .grid { display: grid; gap: 18px; }
+    .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
+    video { width: 100%; max-width: 360px; border-radius: 8px; background: #000; }
+
+    /* Compact run detail: video pinned right (RTL start), controls flow left. */
+    .run-layout { display: flex; gap: 24px; align-items: flex-start; }
+    .run-video { flex: 0 0 320px; position: sticky; top: 24px; }
+    .run-video video { width: 100%; max-width: none; }
+    .run-main { flex: 1 1 auto; min-width: 0; }
+    .run-main .card { margin-bottom: 14px; }
+    .vswitch { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 4px; }
+    .vswitch button {
+      padding: 5px 12px; font-size: 13px; font-weight: 600;
+      background: #0d1117; border: 1px solid var(--border); color: var(--muted);
+    }
+    .vswitch button.active { background: var(--accent); border-color: var(--accent); color: #000; }
+    @media (max-width: 820px) {
+      .run-layout { flex-direction: column; }
+      .run-video { position: static; flex-basis: auto; width: 100%; max-width: 360px; }
+    }
+
+    /* Clip review list: video at start (right in RTL), review controls flow after (left). */
+    .clip-card { display: flex; gap: 20px; align-items: flex-start; }
+    .clip-video { flex: 0 0 300px; }
+    .clip-video video { width: 100%; max-width: none; }
+    .clip-main { flex: 1 1 auto; min-width: 0; }
+    .clip-main h2 { margin: 0; }
+    .clip-actions { display: flex; gap: 8px; align-items: flex-end; margin-top: 10px; }
+    .clip-actions textarea { min-height: 46px; }
+    .clip-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .clip-select { display: flex; align-items: center; gap: 7px; margin: 0; cursor: pointer; color: var(--fg); font-size: 13px; }
+    @media (max-width: 760px) {
+      .clip-card { flex-direction: column; }
+      .clip-video { flex-basis: auto; width: 100%; max-width: 300px; }
+    }
+
+    /* Bulk-review: a floating bar that slides up only when clips are selected. */
+    .bulkbar {
+      position: fixed; inset: auto 0 0 0; z-index: 50;
+      background: #11201b; border-top: 2px solid var(--accent);
+      padding: 14px 28px; box-shadow: 0 -10px 30px rgba(0,0,0,.5);
+      transform: translateY(120%); transition: transform .22s ease;
+    }
+    .bulkbar.open { transform: translateY(0); }
+    .bulkbar-inner { max-width: 1200px; margin: 0 auto; display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+    .bulkbar textarea { flex: 1 1 340px; min-height: 50px; }
+    .bulkbar .bb-side { display: flex; flex-direction: column; gap: 8px; min-width: 180px; }
+    .bulkbar .bb-count { font-size: 13px; font-weight: 600; color: var(--accent); }
+    button, .btn {
+      font: inherit; padding: 10px 18px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--card);
+      color: var(--fg); cursor: pointer;
+    }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
+    button:hover { filter: brightness(1.1); }
+    button:disabled { opacity: 0.5; cursor: wait; }
+    textarea, input[type=text] {
+      width: 100%; padding: 10px 12px; border-radius: 8px;
+      border: 1px solid var(--border); background: #0d1117; color: var(--fg);
+      font: inherit; direction: rtl;
+    }
+    textarea { min-height: 100px; resize: vertical; }
+    label { font-size: 13px; color: var(--muted); display: block; margin: 14px 0 6px; }
+    h2 { margin: 0 0 8px; font-size: 17px; }
+    h3 { margin: 4px 0 8px; font-size: 14px; color: var(--muted); }
+    .tags span {
+      display: inline-block; background: #21262d; padding: 3px 10px;
+      border-radius: 999px; font-size: 12px; margin: 2px 4px 2px 0;
+    }
+    .empty { color: var(--muted); padding: 60px; text-align: center; }
+    .comment {
+      background: #0d1117; border-right: 3px solid var(--accent);
+      padding: 10px 14px; border-radius: 6px; margin: 8px 0;
+    }
+    .comment .meta { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    nav a { margin-right: 16px; }
+    code { background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><span>ברול</span>שורטס • ביקורת</h1>
+    <nav>
+      <a href="/">← דף הבית</a>
+      <a href="{{ url_prefix }}/">כל הקליפים</a>
+      <a href="{{ url_prefix }}/feedback">משוב כללי</a>
+    </nav>
+  </header>
+  <main class="wrap">
+    {% block body %}{% endblock %}
+  </main>
+</body>
+</html>

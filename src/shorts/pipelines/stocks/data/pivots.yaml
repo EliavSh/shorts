@@ -1,0 +1,68 @@
+# Known supply-chain / sector / competitor relationships used by the topic picker
+# to find a second-order story. When the primary ticker is the key, candidates
+# are checked (in order) for being meaningful movers; the first one that's
+# moving (and ideally in the same direction) becomes story #2.
+#
+# `reason` is a short Hebrew/English-agnostic phrase passed to the script writer
+# so it can write the pivot line with real context.
+
+NVDA:
+  - { ticker: TSM,  reason: "TSMC manufactures Nvidia's chips — same AI-demand tailwind" }
+  - { ticker: AMD,  reason: "Direct competitor in AI accelerators" }
+  - { ticker: AVGO, reason: "Broadcom is a major AI-networking beneficiary" }
+  - { ticker: ASML, reason: "ASML lithography machines enable all advanced chips" }
+
+AMD:
+  - { ticker: NVDA, reason: "Main competitor in AI GPUs" }
+  - { ticker: TSM,  reason: "TSMC manufactures AMD's chips" }
+  - { ticker: INTC, reason: "Traditional CPU rival" }
+
+INTC:
+  - { ticker: AMD,  reason: "Direct CPU and datacenter competitor" }
+  - { ticker: TSM,  reason: "Intel partly relies on TSMC capacity" }
+
+TSM:
+  - { ticker: NVDA, reason: "TSMC's largest customer for advanced nodes" }
+  - { ticker: AAPL, reason: "TSMC is Apple's exclusive A-series fabricator" }
+  - { ticker: AMD,  reason: "TSMC fabricates AMD's chips" }
+  - { ticker: ASML, reason: "ASML supplies TSMC's EUV lithography" }
+
+AAPL:
+  - { ticker: TSM,  reason: "TSMC manufactures Apple's silicon" }
+  - { ticker: QCOM, reason: "Qualcomm supplies/has supplied modem chips to Apple" }
+
+MSFT:
+  - { ticker: NVDA, reason: "Microsoft is a top buyer of Nvidia AI chips for Azure" }
+  - { ticker: GOOGL, reason: "Cloud and AI rival" }
+
+GOOGL:
+  - { ticker: META, reason: "Digital ad rival" }
+  - { ticker: NVDA, reason: "Google Cloud is a major Nvidia customer" }
+
+META:
+  - { ticker: GOOGL, reason: "Digital ad rival" }
+  - { ticker: NVDA, reason: "Meta is one of Nvidia's biggest GPU customers" }
+
+AMZN:
+  - { ticker: WMT,  reason: "Retail giant rivalry" }
+  - { ticker: NVDA, reason: "AWS buys Nvidia GPUs in volume" }
+
+TSLA:
+  - { ticker: NVDA, reason: "Tesla buys Nvidia GPUs for AI training" }
+  - { ticker: BYDDY, reason: "Direct EV competitor" }
+
+# Banks — Fed-driven correlated movers
+JPM:
+  - { ticker: BAC, reason: "Same large-bank rate sensitivity" }
+  - { ticker: GS,  reason: "Investment-banking peer" }
+
+# Oil — sector tailwinds
+XOM:
+  - { ticker: CVX, reason: "Same integrated-oil sector tailwind" }
+  - { ticker: COP, reason: "Same oil-price sensitivity" }
+
+# Crypto-adjacent
+COIN:
+  - { ticker: MSTR, reason: "Both deeply correlated with bitcoin price" }
+MSTR:
+  - { ticker: COIN, reason: "Both deeply correlated with bitcoin price" }

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ item.source_title }} - ביקורת{% endblock %}
+{% block body %}
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px">
+      <div>
+        <h2 style="margin:0">{{ item.source_title }}</h2>
+        <div class="muted" style="font-size:13px; margin-top:4px">
+          מקור:
+          <a href="{{ item.source_url }}" target="_blank">@{{ item.creator_handle }}</a> •
+          רגע: {{ item.moment_start_s }}ש׳→{{ item.moment_end_s }}ש׳ •
+          ביטחון: {{ '%.2f'|format(item.moment_confidence) }}
+        </div>
+      </div>
+      <span id="status-badge" class="badge {{ item.status }}">
+        {% if item.status == 'processing' %}🔄 מעבד גרסה חדשה...{% else %}✓ מוכן לבדיקה{% endif %}
+      </span>
+    </div>
+  </div>
+
+  <h2 style="margin: 24px 0 12px">{{ versions|length }} גרסאות, החדשה ביותר מימין</h2>
+  <div class="grid cols-2" id="versions-grid">
+    {% for v in versions %}
+      <div class="card">
+        <h3>גרסה v{{ v.v }} <span class="muted" style="font-weight: normal">• {{ v.created_at }}</span></h3>
+        <video controls preload="metadata" src="/video/{{ item.run_id }}/v{{ v.v }}"></video>
+        <p style="margin-top:10px"><strong>{{ v.title }}</strong></p>
+        <div class="muted" style="font-size:13px">{{ v.description }}</div>
+        <div class="muted" style="font-size:12px; margin-top:10px">
+          <strong>Hook:</strong> {{ v.hook_text }}<br>
+          <strong>כתוביות:</strong> {{ v.captions|join(' • ') }}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <h2 style="margin: 24px 0 12px">השארת תגובה</h2>
+  <div class="card">
+    <form method="post" action="/run/{{ item.run_id }}/comment">
+      <label>מה לשנות / מה לשמר / מה דעתך?</label>
+      <textarea name="text" placeholder="לדוגמה: ה-hook יותר מדי גנרי, תן לי משהו עם שם הברולר. הכתוביות יותר מדי מהר. הכתובית הראשונה צריכה להופיע אחרי 1 שנייה ולא מיד..." required {% if item.status == 'processing' %}disabled{% endif %}></textarea>
+      <button class="primary" type="submit" {% if item.status == 'processing' %}disabled{% endif %}>
+        {% if item.status == 'processing' %}🔄 בעיבוד, חכה...{% else %}שלח ויצור גרסה חדשה{% endif %}
+      </button>
+      <p class="muted" style="font-size:13px; margin-top:10px">
+        אחרי שתשלח, המערכת תייצר גרסה חדשה בשם <code>v{{ item.current_version + 1 }}</code> שמטמיעה את ההערה.
+        כל הגרסאות יישמרו כאן זו לצד זו.
+      </p>
+    </form>
+  </div>
+
+  {% if item.comments %}
+    <h2 style="margin: 24px 0 12px">הערות קודמות ({{ item.comments|length }})</h2>
+    {% for c in item.comments|reverse %}
+      <div class="comment">
+        <div class="meta">על v{{ c.version_at_time }} • {{ c.created_at }}</div>
+        <div>{{ c.text }}</div>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <script>
+    // If processing, poll status until ready, then reload.
+    const initialStatus = "{{ item.status }}";
+    if (initialStatus === "processing") {
+      const poll = setInterval(async () => {
+        try {
+          const r = await fetch("/api/status/{{ item.run_id }}");
+          const j = await r.json();
+          if (j.status === "ready") {
+            clearInterval(poll);
+            window.location.reload();
+          }
+        } catch (e) { /* ignore */ }
+      }, 5000);
+    }
+  </script>
+{% endblock %}

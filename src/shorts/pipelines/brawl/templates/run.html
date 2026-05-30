@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}{{ item.source_title }} - ביקורת{% endblock %}
+{% block body %}
+  <div class="run-layout">
+    {# ── Video column — pinned to the right (RTL start), sticky on scroll ── #}
+    <aside class="run-video">
+      <div class="card" style="padding:12px">
+        {% set lv = versions[-1] if versions else none %}
+        <video id="player" controls preload="metadata"
+               src="{{ url_prefix }}/video/{{ item.run_id }}/v{{ lv.v if lv else item.current_version }}"></video>
+        {% if versions|length > 1 %}
+          <div class="vswitch" id="vswitch">
+            {% for v in versions %}
+              <button type="button" data-v="{{ v.v }}"
+                      class="{{ 'active' if v.v == lv.v else '' }}">v{{ v.v }}</button>
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div class="muted" style="font-size:12px; margin-top:8px">
+          <span id="vlabel">גרסה v{{ lv.v if lv else item.current_version }}</span>
+          • {{ versions|length }} גרסאות
+        </div>
+      </div>
+    </aside>
+
+    {# ── Control column — everything else, on the left ── #}
+    <section class="run-main">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px">
+          <div>
+            <h2 style="margin:0">{{ item.source_title }}</h2>
+            <div class="muted" style="font-size:13px; margin-top:4px">
+              מקור:
+              <a href="{{ item.source_url }}" target="_blank">@{{ item.creator_handle }}</a> •
+              רגע: {{ item.moment_start_s }}ש׳→{{ item.moment_end_s }}ש׳ •
+              ביטחון: {{ '%.2f'|format(item.moment_confidence) }}
+            </div>
+          </div>
+          <span id="status-badge" class="badge {{ item.status }}">
+            {% if item.status == 'processing' %}🔄 מעבד גרסה חדשה...{% else %}✓ מוכן לבדיקה{% endif %}
+          </span>
+        </div>
+        {# Per-version metadata, swapped in sync with the player #}
+        {% for v in versions %}
+          <div class="vmeta" data-v="{{ v.v }}" {% if not loop.last %}style="display:none"{% endif %}>
+            <p style="margin:14px 0 4px"><strong>{{ v.title }}</strong></p>
+            <div class="muted" style="font-size:13px">{{ v.description }}</div>
+            <div class="muted" style="font-size:12px; margin-top:10px">
+              <strong>Hook:</strong> {{ v.hook_text }}<br>
+              <strong>כתוביות:</strong> {{ v.captions|join(' • ') }}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="card">
+        <h2>השארת תגובה</h2>
+        <form method="post" action="{{ url_prefix }}/run/{{ item.run_id }}/comment">
+          <label>מה לשנות / מה לשמר / מה דעתך?</label>
+          <textarea name="text" placeholder="לדוגמה: ה-hook יותר מדי גנרי, תן לי משהו עם שם הברולר. הכתוביות יותר מדי מהר. הכתובית הראשונה צריכה להופיע אחרי 1 שנייה ולא מיד..." required {% if item.status == 'processing' %}disabled{% endif %}></textarea>
+          <button class="primary" type="submit" {% if item.status == 'processing' %}disabled{% endif %}>
+            {% if item.status == 'processing' %}🔄 בעיבוד, חכה...{% else %}שלח ויצור גרסה חדשה{% endif %}
+          </button>
+          <p class="muted" style="font-size:13px; margin-top:10px">
+            אחרי שתשלח, המערכת תייצר גרסה חדשה בשם <code>v{{ item.current_version + 1 }}</code> שמטמיעה את ההערה.
+          </p>
+        </form>
+      </div>
+
+      <div class="card" style="background:#0a2515; border-color:#2ea043">
+        <h2 style="margin-top:0">פרסום ליוטיוב</h2>
+        <p class="muted" style="margin:6px 0 12px">
+          כשהקליפ מספיק טוב — שלח אותו לערוץ היוטיוב של brawl (כ-<code>unlisted</code> כברירת מחדל).
+        </p>
+        <form method="post" action="{{ url_prefix }}/run/{{ item.run_id }}/publish">
+          <button class="primary" style="background:#2ea043; border-color:#2ea043; color:white"
+                  type="submit" {% if item.status != 'ready' %}disabled{% endif %}>
+            {% if item.status == 'publishing' %}📤 מעלה...{% else %}פרסם ליוטיוב (ערוץ brawl){% endif %}
+          </button>
+        </form>
+      </div>
+
+      {% if item.comments %}
+        <div class="card">
+          <h2>הערות קודמות ({{ item.comments|length }})</h2>
+          {% for c in item.comments|reverse %}
+            <div class="comment">
+              <div class="meta">על v{{ c.version_at_time }} • {{ c.created_at }}</div>
+              <div>{{ c.text }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+  </div>
+
+  <script>
+    // Version switcher: swap player src + metadata block without reload.
+    const sw = document.getElementById("vswitch");
+    if (sw) {
+      sw.addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-v]");
+        if (!btn) return;
+        const v = btn.dataset.v;
+        document.getElementById("player").src =
+          "{{ url_prefix }}/video/{{ item.run_id }}/v" + v;
+        document.getElementById("vlabel").textContent = "גרסה v" + v;
+        sw.querySelectorAll("button").forEach(b =>
+          b.classList.toggle("active", b.dataset.v === v));
+        document.querySelectorAll(".vmeta").forEach(m =>
+          m.style.display = (m.dataset.v === v) ? "" : "none");
+      });
+    }
+
+    // If processing, poll status until ready, then reload.
+    const initialStatus = "{{ item.status }}";
+    if (initialStatus === "processing") {
+      const poll = setInterval(async () => {
+        try {
+          const r = await fetch("{{ url_prefix }}/api/status/{{ item.run_id }}");
+          const j = await r.json();
+          if (j.status === "ready") { clearInterval(poll); window.location.reload(); }
+        } catch (e) { /* ignore */ }
+      }, 5000);
+    }
+  </script>
+{% endblock %}

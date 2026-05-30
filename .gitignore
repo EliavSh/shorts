@@ -1,0 +1,30 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+.env
+.env.local
+secrets/
+
+# All runtime data/artifacts (regenerable, lives on the Fly volume in prod).
+/data/
+!/data/**/.gitkeep
+# Stray data dir that should not exist inside the package.
+/src/shorts/data/
+
+archive/
+
+# Local logs / moviepy temp files
+dash.log
+dash.err
+*TEMP_MPY_*
+
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

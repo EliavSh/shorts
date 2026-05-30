@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>shorts — review dashboard</title>
+  <style>
+    :root { --bg:#0e1116; --card:#161b22; --border:#30363d; --fg:#e6edf3; --muted:#7d8590; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--fg);
+           font:15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    header { padding: 22px 32px; border-bottom: 1px solid var(--border); }
+    header h1 { margin: 0; font-size: 19px; }
+    main { max-width: 980px; margin: 0 auto; padding: 32px; }
+    .grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+            padding: 22px; transition: transform 120ms ease, border-color 120ms ease; }
+    .card:hover { transform: translateY(-2px); border-color: var(--fg); }
+    .card a { color: var(--fg); text-decoration: none; display: block; }
+    .accent { display: inline-block; width: 14px; height: 14px; border-radius: 4px;
+              vertical-align: middle; margin-right: 8px; }
+    .label { font-size: 19px; font-weight: 700; margin: 0 0 6px; }
+    .meta { color: var(--muted); font-size: 13px; }
+    .pending { color: #f0b400; font-weight: 600; }
+    .empty { color: var(--muted); margin-top: 12px; font-style: italic; }
+    .latest { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
+              font-size: 13px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header><h1>shorts — review dashboard</h1></header>
+  <main>
+    <p class="meta" style="margin-bottom: 22px">
+      Pick a pipeline. Each one has its own queue, rules, and YouTube channel.
+    </p>
+    <div class="grid">
+      {% for p in pipelines %}
+        <div class="card">
+          <a href="{{ p.prefix }}/">
+            <p class="label">
+              <span class="accent" style="background: {{ p.accent }}"></span>{{ p.label }}
+            </p>
+            <p class="meta">{{ p.total }} run{{ '' if p.total == 1 else 's' }} •
+              {% if p.pending %}<span class="pending">{{ p.pending }} in review</span>
+              {% else %}all reviewed{% endif %}
+            </p>
+            {% if p.latest_title %}
+              <p class="latest">latest: <em>{{ p.latest_title }}</em></p>
+            {% else %}
+              <p class="empty">no runs yet — generate one with the pipeline's CLI</p>
+            {% endif %}
+          </a>
+        </div>
+      {% endfor %}
+    </div>
+  </main>
+</body>
+</html>

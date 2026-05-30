@@ -1,0 +1,33 @@
+video:
+  width: 1080
+  height: 1920
+  fps: 30
+  duration_min_s: 15
+  duration_max_s: 45
+
+audio:
+  voice_db: 0
+  music_db: -18
+  original_audio_db: -3   # streamer commentary stays loud
+
+discovery:
+  lookback_days: 10
+  min_view_velocity: 200  # views/hour
+  max_results_per_query: 50
+  max_clip_seconds_per_source: 25
+  # Minimum source video length. Anything shorter is almost certainly an
+  # already-edited short (someone else's work) — drop those before ranking.
+  # The project's job is to find moments inside long-form videos and edit them
+  # into shorts ourselves, not to re-upload finished shorts.
+  min_duration_s: 900       # 15 min
+  # Channels under this sub count must clear the velocity bar to keep ranking.
+  small_channel_sub_threshold: 5000
+
+llm:
+  # Text-only LLM (hype filter, hook copy, VO scripts). Haiku is plenty.
+  model: "claude-haiku-4-5-20251001"
+  max_tokens: 2048
+  # Vision LLM (gameplay-purity gate on sampled frames). Sonnet's vision is
+  # noticeably more accurate at distinguishing "small corner facecam" from
+  # "menu screen", and tends to have better availability than Haiku.
+  vision_model: "claude-sonnet-4-5"

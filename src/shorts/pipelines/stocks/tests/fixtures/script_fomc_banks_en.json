@@ -1,0 +1,104 @@
+{
+  "lang": "en",
+  "format": "deep_dive_one_stock",
+  "title": "Why Bank Stocks Are Sweating the June Fed Meeting",
+  "description_hashtags": [
+    "#KBE",
+    "#banks",
+    "#Fed",
+    "#FOMC",
+    "#stocks",
+    "#investing",
+    "#ratecuts",
+    "#dotplot"
+  ],
+  "tickers": [
+    {
+      "ticker": "KBE",
+      "name": "SPDR S&P Bank ETF",
+      "change_pct": 0.4,
+      "price": 58.0,
+      "ohlc_30d": []
+    }
+  ],
+  "beats": [
+    {
+      "narration": "If you own a bank stock, June 17 matters more than you think.",
+      "caption": null,
+      "visual_tags": [
+        "calendar",
+        "fed",
+        "banks"
+      ],
+      "role": "hook",
+      "ticker_focus": "KBE",
+      "hook_pattern": "if_then"
+    },
+    {
+      "narration": "KBE is the SPDR S&P Bank ETF — JPMorgan, Bank of America, Wells Fargo, and every major US lender rolled into one ticker.",
+      "caption": null,
+      "visual_tags": [
+        "etf",
+        "bank logos"
+      ],
+      "role": "body",
+      "ticker_focus": "KBE",
+      "hook_pattern": null
+    },
+    {
+      "narration": "On June 16 and 17, the Fed is widely expected to hold rates at 3.50 to 3.75%.",
+      "caption": null,
+      "visual_tags": [
+        "fed",
+        "rates"
+      ],
+      "role": "body",
+      "ticker_focus": "KBE",
+      "hook_pattern": null
+    },
+    {
+      "narration": "The real story isn't the hold — it's the dot plot. Major banks are now pushing rate cuts out to 2027, not late 2026.",
+      "caption": null,
+      "visual_tags": [
+        "dot plot",
+        "2027"
+      ],
+      "role": "body",
+      "ticker_focus": "KBE",
+      "hook_pattern": null
+    },
+    {
+      "narration": "Sticky energy inflation and Middle East tensions are keeping the Fed locked in higher-for-longer mode.",
+      "caption": null,
+      "visual_tags": [
+        "oil",
+        "inflation"
+      ],
+      "role": "body",
+      "ticker_focus": "KBE",
+      "hook_pattern": null
+    },
+    {
+      "narration": "If cuts stall, bank net interest margins get squeezed — and KBE is the cleanest proxy for that pain.",
+      "caption": null,
+      "visual_tags": [
+        "nim",
+        "pressure"
+      ],
+      "role": "body",
+      "ticker_focus": "KBE",
+      "hook_pattern": null
+    },
+    {
+      "narration": "Watch the dot plot Wednesday — that's the chart that moves the banks.",
+      "caption": null,
+      "visual_tags": [
+        "watch",
+        "chart"
+      ],
+      "role": "cta",
+      "ticker_focus": "KBE",
+      "hook_pattern": null
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}משוב כללי — brawl{% endblock %}
+{% block body %}
+  <h2>משוב גלובלי — brawl</h2>
+  <p class="muted">
+    הערות כלליות שמשפיעות על <strong>כל הקליפים העתידיים</strong> בקו הייצור של brawl —
+    לא רק על הקליפ הספציפי. דוגמאות: "הכתוביות תמיד מהירות מדי", "ה-hook חייב להזכיר
+    את שם הברולר", "אל תיגע בקליפים של ערוץ X".
+  </p>
+
+  <div class="card">
+    <form method="post" action="{{ url_prefix }}/feedback">
+      <label>הוסף הערה גלובלית</label>
+      <textarea name="text" placeholder="לדוגמה: התווית 'גן ולגלוט' לא צריכה להופיע בכתוביות..." required></textarea>
+      <button class="primary" type="submit">שמור</button>
+    </form>
+  </div>
+
+  <h2 style="margin-top:30px">הערות מצטברות ({{ insights_file.insights|length }})</h2>
+  <p class="muted" style="font-size:13px">
+    מערכת זו אוספת גם את ההערות הגלובליות שאתה כותב כאן וגם את הדיסטילציה האוטומטית
+    של תגובות פר-קליפ. כל הקליפים החדשים והגרסאות החדשות מקבלים את כל הרשימה כקונטקסט.
+  </p>
+  {% if not insights_file.insights %}
+    <div class="empty">אין עדיין הערות מצטברות.</div>
+  {% else %}
+    {% for ins in insights_file.insights|reverse %}
+      <div class="card">
+        <strong>{{ ins.bullet }}</strong>
+        <div class="muted" style="font-size:12px; margin-top:6px">
+          קטגוריה: <code>{{ ins.category }}</code> •
+          מקור:
+          {% if ins.from_run == '(global)' %}<em>הערה כללית ישירה</em>
+          {% else %}<a href="{{ url_prefix }}/run/{{ ins.from_run }}">{{ ins.from_run }}</a>
+          {% endif %} •
+          {{ ins.added_at }}
+        </div>
+        {% if ins.source_comment and ins.source_comment != ins.bullet %}
+          <div class="muted" style="font-size:12px; margin-top:6px; font-style: italic">
+            "{{ ins.source_comment }}"
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endblock %}

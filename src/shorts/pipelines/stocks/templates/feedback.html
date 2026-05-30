@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Stocks — global feedback</title>
+  <style>
+    body { background:#0e1116; color:#e6edf3; font:15px/1.55 system-ui, sans-serif; margin:0; }
+    header { padding:18px 28px; border-bottom:1px solid #30363d; display:flex;
+             justify-content:space-between; align-items:center; }
+    header h1 { margin:0; font-size:18px; }
+    header h1 span { color:#22C55E; }
+    a { color:#22C55E; text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    nav a { margin-left: 16px; }
+    .wrap { max-width:900px; margin:0 auto; padding:24px 28px; }
+    .card { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:18px;
+            margin-bottom:16px; }
+    textarea { width:100%; padding:10px 12px; border-radius:8px; border:1px solid #30363d;
+               background:#0d1117; color:#e6edf3; font:inherit; min-height:100px; }
+    button { font:inherit; padding:10px 18px; border-radius:8px; border:1px solid #22C55E;
+             background:#22C55E; color:#000; cursor:pointer; font-weight:700; }
+    .muted { color:#7d8590; }
+    code { background:#21262d; padding:2px 6px; border-radius:4px; }
+    .empty { color:#7d8590; padding:60px; text-align:center; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><span>stocks</span>shorts • global feedback</h1>
+    <nav>
+      <a href="/">← all pipelines</a>
+      <a href="/stocks/">← back to queue</a>
+    </nav>
+  </header>
+  <main class="wrap">
+    <h2>Global feedback — stocks</h2>
+    <p class="muted">
+      Cross-cutting rules that steer <strong>all future stocks renders</strong>.
+      e.g. "captions are always too fast", "always anchor numbers with a vivid scale fact".
+    </p>
+
+    <div class="card">
+      <form method="post" action="/stocks/feedback">
+        <label class="muted" style="font-size:13px">Add a global note</label>
+        <textarea name="text" placeholder="e.g. Captions must wrap inside the 1080px frame..." required></textarea>
+        <button type="submit" style="margin-top:10px">Save</button>
+      </form>
+    </div>
+
+    <h2 style="margin-top:30px">Accumulated insights ({{ insights_file.insights|length }})</h2>
+    <p class="muted" style="font-size:13px">
+      Includes both global notes you typed and LLM-distilled bullets from per-clip comments.
+      All future renders receive this list as context.
+    </p>
+    {% if not insights_file.insights %}
+      <div class="empty">No insights yet.</div>
+    {% else %}
+      {% for ins in insights_file.insights|reverse %}
+        <div class="card">
+          <strong>{{ ins.bullet }}</strong>
+          <div class="muted" style="font-size:12px; margin-top:6px">
+            category: <code>{{ ins.category }}</code> •
+            {% if ins.from_run == '(global)' %}<em>direct global note</em>
+            {% else %}from: <a href="{{ url_prefix }}/run/{{ ins.from_run }}">{{ ins.from_run }}</a>
+            {% endif %} •
+            {{ ins.added_at }}
+          </div>
+        </div>
+      {% endfor %}
+    {% endif %}
+  </main>
+</body>
+</html>
