@@ -85,19 +85,36 @@ def _synthesize_edge(*, text: str, lang: str, out_dir: Path) -> TTSResult:
     return TTSResult(audio_path=out_path, duration_ms=duration_ms, words=words)
 
 
+_FW_MODEL = None
+
+
+def _get_fw_model():
+    """Lazily load (and cache) the faster-whisper model.
+
+    int8 on CPU keeps the 'small' weights at ~250MB RAM (vs ~1GB+ for
+    openai-whisper fp32), so a 2GB cloud render machine doesn't OOM, and it's
+    noticeably faster on CPU. Weights cache under HF_HOME (a Fly volume in
+    production) so they download only once.
+    """
+    global _FW_MODEL
+    if _FW_MODEL is None:
+        from faster_whisper import WhisperModel
+        _FW_MODEL = WhisperModel("small", device="cpu", compute_type="int8")
+    return _FW_MODEL
+
+
 def _align_words_with_whisper(*, audio_path: Path, lang: str) -> list[WordTiming]:
     """Run Whisper on a synthesized audio file and return word-level timings.
 
-    Whisper internally calls `ffmpeg` to decode audio; on Windows this binary
-    is usually not on PATH. We decode to a numpy float32 array ourselves using
-    the imageio-ffmpeg bundled binary, then hand the array to Whisper.
+    Uses faster-whisper (CTranslate2) for a small RAM footprint. Whisper wants
+    16kHz mono; on Windows ffmpeg isn't on PATH, so we decode to a float32 array
+    ourselves with the imageio-ffmpeg bundled binary and hand that to Whisper.
     """
     import subprocess
     import wave
 
     import imageio_ffmpeg
     import numpy as np
-    import whisper
 
     log.info("Whisper-aligning %s (lang=%s)", audio_path.name, lang)
 
@@ -108,17 +125,17 @@ def _align_words_with_whisper(*, audio_path: Path, lang: str) -> list[WordTiming
     with wave.open(str(wav_path), "rb") as w:
         pcm = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float32) / 32768.0
 
-    model = whisper.load_model("small")
-    result = model.transcribe(pcm, language=lang, word_timestamps=True, fp16=False, verbose=False)
+    model = _get_fw_model()
+    segments, _info = model.transcribe(pcm, language=lang, word_timestamps=True)
 
     words: list[WordTiming] = []
-    for seg in result.get("segments", []):
-        for w in seg.get("words", []):
-            text = (w.get("word") or "").strip()
+    for seg in segments:
+        for w in (seg.words or []):
+            text = (w.word or "").strip()
             if not text:
                 continue
-            start_ms = int(float(w["start"]) * 1000)
-            end_ms = int(float(w["end"]) * 1000)
+            start_ms = int(float(w.start) * 1000)
+            end_ms = int(float(w.end) * 1000)
             if end_ms <= start_ms:
                 end_ms = start_ms + 60
             words.append(WordTiming(word=text, start_ms=start_ms, end_ms=end_ms))
