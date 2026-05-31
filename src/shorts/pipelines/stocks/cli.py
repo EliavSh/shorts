@@ -255,6 +255,33 @@ def topic_quote(ticker: str) -> None:
     console.print(f"  ohlc samples: {len(q.ohlc_30d)} days")
 
 
+@cli.command("earnings")
+@click.option("--days", default=7, type=int, help="Look ahead this many days.")
+@click.option("--ticker", "tickers", multiple=True, help="Limit to these tickers (repeatable).")
+def earnings_cmd(days: int, tickers: tuple[str, ...]) -> None:
+    """List companies in the universe reporting earnings within the window."""
+    from rich.table import Table
+
+    from .data.earnings import upcoming_earnings
+
+    events = upcoming_earnings(list(tickers) or None, days=days)
+    if not events:
+        console.print(f"[yellow]No upcoming reporters in the next {days}d "
+                      f"(or market data unavailable).[/yellow]")
+        return
+
+    t = Table(title=f"Earnings in next {days}d", show_header=True, header_style="bold cyan")
+    t.add_column("Date"); t.add_column("In", justify="right"); t.add_column("Ticker")
+    t.add_column("EPS est", justify="right"); t.add_column("When")
+    for ev in events:
+        t.add_row(
+            ev.report_date.isoformat(), f"{ev.days_away}d", ev.ticker,
+            f"{ev.eps_estimate:.2f}" if ev.eps_estimate is not None else "-",
+            ev.when or "-",
+        )
+    console.print(t)
+
+
 @cli.command("render-fixture")
 @click.argument("name")
 @click.option("--lang", default="en", type=click.Choice(["en"]))
