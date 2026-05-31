@@ -60,8 +60,13 @@ def _pick_music_bed(duration_s: float):
     return bed.with_effects([MultiplyVolume(gain)])
 
 
-def compose_video(*, script: Script, tts: TTSResult, out_path: Path) -> Path:
-    """Render the final 1080x1920 mp4."""
+def compose_video(*, script: Script, tts: TTSResult, out_path: Path,
+                  guidance: str | None = None) -> Path:
+    """Render the final 1080x1920 mp4.
+
+    `guidance` carries reviewer feedback from a comment-driven regeneration so
+    the visual director can correct mismatched/boring imagery.
+    """
     brand = load_brand(script.lang)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     audio_clip = AudioFileClip(str(tts.audio_path))
@@ -76,7 +81,7 @@ def compose_video(*, script: Script, tts: TTSResult, out_path: Path) -> Path:
     layers.append(ColorClip(size=(FRAME_W, FRAME_H), color=FALLBACK_BG, duration=total_s).with_start(0))
 
     # 1. Background visuals — director plans sections, scheduler picks images.
-    plan = make_plan(script, total_duration_s=total_s)
+    plan = make_plan(script, total_duration_s=total_s, guidance=guidance)
     log.info("Visual plan: %d sections", len(plan.sections))
     for sec in plan.sections:
         log.info("  [%.1f-%.1f] %s", sec.start_s, sec.end_s, sec.intent[:80])

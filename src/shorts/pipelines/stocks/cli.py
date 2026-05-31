@@ -325,6 +325,42 @@ def render_fixture(name: str, lang: str) -> None:
     console.print(f"[green]Done.[/green] {out_mp4}")
 
 
+@cli.command("regen")
+@click.argument("slug")
+@click.option("--lang", default="en", type=click.Choice(["en"]))
+@click.option("--note", default="", help="Reviewer guidance; if omitted, uses the clip's pending comments.")
+def regen_cmd(slug: str, lang: str, note: str) -> None:
+    """Re-render a clip as a new version, addressing reviewer feedback.
+
+    Guidance is taken from --note, or (when omitted) from the clip's comments
+    that target the current version. Used by the dashboard's per-clip comment box.
+    """
+    from shorts.core.reviews import ReviewStore
+    from .pipeline import regenerate_clip
+
+    store = ReviewStore("stocks")
+    guidance = note.strip()
+    if not guidance:
+        item = store.load(slug)
+        if item is None:
+            console.print(f"[red]Clip {slug} not found.[/red]")
+            raise SystemExit(1)
+        pending = [c.text for c in item.comments if c.version_at_time >= item.current_version]
+        guidance = "\n".join(f"- {t}" for t in pending)
+
+    if not guidance:
+        console.print("[yellow]No guidance/comments to act on — nothing to regenerate.[/yellow]")
+        return
+
+    console.print(f"[bold]Regenerating[/bold] {slug} with guidance:\n{guidance}")
+    result = regenerate_clip(slug, lang=lang, guidance=guidance)
+    if result is None:
+        store.mark_status(slug, "ready")
+        console.print("[red]Regeneration failed — could not recover topic context.[/red]")
+        raise SystemExit(1)
+    console.print(f"[green]Done.[/green] New version at {result.mp4_path}")
+
+
 # Sub-command stubs registered now so the surface is stable across phases.
 
 @cli.command("run")
@@ -401,16 +437,19 @@ def autopilot() -> None:
 
 @autopilot.command("tick")
 @click.option("--lang", default="en", type=click.Choice(["en"]))
-def autopilot_tick(lang: str) -> None:
-    """Render the next due planned item (regenerating the plan if empty)."""
+@click.option("--max-items", type=int, default=None,
+              help="Cap clips this run (default: the daily target).")
+def autopilot_tick(lang: str, max_items: int | None) -> None:
+    """Render today's batch of planned items, up to the daily target."""
     from .planner.orchestrate import tick
 
-    result = tick(lang=lang)
-    if result is None:
+    results = tick(lang=lang, max_items=max_items)
+    if not results:
         console.print("[yellow]Nothing due to render.[/yellow]")
         return
-    console.print(f"[green]Rendered.[/green] {result.mp4_path}")
-    console.print(f"  duration={result.duration_s:.1f}s  slug={result.slug}")
+    console.print(f"[green]Rendered {len(results)} clip(s).[/green]")
+    for r in results:
+        console.print(f"  slug={r.slug}  duration={r.duration_s:.1f}s")
 
 
 # YouTube OAuth now lives in the shared top-level CLI:

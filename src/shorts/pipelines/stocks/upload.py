@@ -7,6 +7,9 @@ a clear error if missing.
 """
 from __future__ import annotations
 
+import json
+import shutil
+
 from rich.console import Console
 
 from shorts.config import load_secrets
@@ -14,6 +17,19 @@ from shorts.core.publish import auth_from_env, upload_short
 from shorts.core.reviews import ReviewStore, latest_version
 
 console = Console()
+
+
+def _manifest_meta(mp4) -> tuple[str, list[str]]:
+    """Best-effort (format, [tickers]) from the render's sidecar manifest."""
+    manifest = mp4.with_suffix(".manifest.json")
+    if not manifest.exists():
+        return "", []
+    try:
+        m = json.loads(manifest.read_text(encoding="utf-8"))
+        tickers = [t.get("ticker", "") for t in m.get("tickers", []) if t.get("ticker")]
+        return m.get("format", ""), tickers
+    except Exception:
+        return "", []
 
 
 def upload(slug: str, *, dry_run: bool = False) -> None:
@@ -53,3 +69,20 @@ def upload(slug: str, *, dry_run: bool = False) -> None:
         pipeline="stocks",
     )
     console.print(f"[green]✓ uploaded:[/green] {result.url}")
+
+    # Record the durable trace, then purge the heavy artifacts. The dashboard is
+    # a staging surface: once a clip is safely on YouTube we keep only the ledger
+    # line (sector/format/tickers) for the planner + stats, and reclaim the disk.
+    fmt, tickers = _manifest_meta(mp4)
+    from .planner.published import record_published
+
+    record_published(
+        slug=slug, title=version.title, fmt=fmt, tickers=tickers,
+        youtube_id=result.video_id, youtube_url=result.url,
+    )
+    run_dir = store.output_root / slug
+    try:
+        shutil.rmtree(run_dir)
+        console.print(f"[green]✓ purged staged artifacts:[/green] {run_dir}")
+    except Exception as e:
+        console.print(f"[yellow]could not purge {run_dir}: {e}[/yellow]")

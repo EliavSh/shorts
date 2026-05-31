@@ -82,12 +82,16 @@ class VisualPlan(BaseModel):
 
 
 def make_plan(script: Script, *, total_duration_s: float,
-              n_sections: int | None = None) -> VisualPlan:
+              n_sections: int | None = None,
+              guidance: str | None = None) -> VisualPlan:
     """Build a visual plan for a script using Claude when available, else a heuristic.
 
     After Claude returns a plan, we audit it: any beat whose narration contains
     a number/date but whose covering section doesn't have a graphic_spec gets
     one auto-injected. This guarantees R2/R14 compliance.
+
+    `guidance` carries reviewer feedback from a comment-driven regeneration (e.g.
+    "image doesn't match") so the director can correct the visuals.
     """
     if n_sections is None:
         n_sections = max(4, math.ceil(total_duration_s / TARGET_SECONDS_PER_SECTION))
@@ -96,7 +100,8 @@ def make_plan(script: Script, *, total_duration_s: float,
     plan: VisualPlan | None = None
     if s.anthropic_api_key:
         try:
-            plan = _make_plan_with_claude(script, total_duration_s=total_duration_s, n_sections=n_sections)
+            plan = _make_plan_with_claude(script, total_duration_s=total_duration_s,
+                                          n_sections=n_sections, guidance=guidance)
         except Exception as e:
             log.warning("Claude director failed (%s) — falling back to heuristic", e)
 
@@ -165,7 +170,8 @@ Also: if the LAST beat is a CTA (role=cta), set `graphic_spec` = `{"kind": "foll
 Return ONLY a JSON object matching the VisualPlan schema."""
 
 
-def _make_plan_with_claude(script: Script, *, total_duration_s: float, n_sections: int) -> VisualPlan:
+def _make_plan_with_claude(script: Script, *, total_duration_s: float, n_sections: int,
+                           guidance: str | None = None) -> VisualPlan:
     from shorts.core.infra.anthropic_client import make_client
 
     s = get_settings()
@@ -181,11 +187,20 @@ def _make_plan_with_claude(script: Script, *, total_duration_s: float, n_section
             "visual_tags": b.visual_tags,
         })
 
+    feedback = ""
+    if guidance and guidance.strip():
+        feedback = (
+            "\n\nReviewer feedback on the previous visuals — fix these directly "
+            "(e.g. mismatched or boring imagery): pick more fitting search queries "
+            f"and section intents.\n{guidance.strip()}"
+        )
+
     user_message = (
         f"Build a {n_sections}-section visual plan for this script "
         f"(total duration {total_duration_s:.2f}s).\n\n"
         f"Tickers: {[{'ticker': t.ticker, 'name': t.name} for t in script.tickers]}\n\n"
         f"Beats (in order):\n```json\n{json.dumps(beats_summary, ensure_ascii=False, indent=2)}\n```"
+        f"{feedback}"
     )
 
     tool = {

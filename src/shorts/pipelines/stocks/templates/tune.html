@@ -34,6 +34,7 @@
     <h1><span>stocks</span>shorts • tune direction</h1>
     <nav>
       <a href="/stocks/">← review</a>
+      <a href="/stocks/stats">stats</a>
       <a href="/stocks/plan">content plan</a>
     </nav>
   </header>
@@ -44,21 +45,13 @@
 
     <form method="post" action="/stocks/tune">
       <div class="card">
-        <h2>Volume &amp; cadence</h2>
-        <div class="muted" style="margin-bottom:14px">How many videos to plan, and how far apart to schedule them.</div>
-        <div class="row2">
-          <div class="field" style="margin-bottom:0">
-            <label for="weekly_volume">Weekly volume</label>
-            <input id="weekly_volume" type="number" name="weekly_volume" min="1" max="14"
-                   value="{{ cfg.weekly_volume }}" />
-            <div class="hint">Number of videos in the upcoming queue (1–14).</div>
-          </div>
-          <div class="field" style="margin-bottom:0">
-            <label for="cadence_days">Cadence (days)</label>
-            <input id="cadence_days" type="number" name="cadence_days" min="1"
-                   value="{{ cfg.cadence_days }}" />
-            <div class="hint">Days between scheduled renders. 1 = daily.</div>
-          </div>
+        <h2>Daily volume</h2>
+        <div class="muted" style="margin-bottom:14px">How many clips the auto-pilot stages each day for your review.</div>
+        <div class="field" style="margin-bottom:0">
+          <label for="daily_target">Clips per day</label>
+          <input id="daily_target" type="number" name="daily_target" min="1" max="14"
+                 value="{{ cfg.daily_target }}" />
+          <div class="hint">Number of clips staged each day (1–14). Lower = cheaper.</div>
         </div>
       </div>
 

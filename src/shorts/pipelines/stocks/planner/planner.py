@@ -121,8 +121,8 @@ def build_plan(
     earnings = earnings or []
     movers = _order_movers(movers or [], config.sector_bias)
 
-    slots = max(1, min(config.weekly_volume, 14))
-    cadence = max(1, config.cadence_days)
+    # daily_target is the active knob: stage this many clips for *today*.
+    slots = max(1, min(config.daily_target, 14))
 
     used_tickers: set[str] = {t.upper() for t in recent_tickers}
     mover_pool = [m for m in movers if m.ticker.upper() not in used_tickers] or movers
@@ -216,10 +216,10 @@ def build_plan(
             source="planner",
         ))
 
-    # Trim to volume and stamp schedule dates at the configured cadence.
+    # Trim to the daily target — all items are today's batch.
     items = items[:slots]
-    for i, it in enumerate(items):
-        it.scheduled_for = today + timedelta(days=i * cadence)
+    for it in items:
+        it.scheduled_for = today
 
     log.info("Built plan: %d items (%d debt, %d earnings, %d series)",
              len(items),

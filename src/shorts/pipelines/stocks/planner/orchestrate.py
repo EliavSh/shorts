@@ -81,7 +81,7 @@ def regenerate_plan(*, today: date | None = None) -> Plan:
         today=today,
     )
     if pinned:
-        plan.items = pinned + [it for it in plan.items][: max(0, cfg.weekly_volume - len(pinned))]
+        plan.items = pinned + [it for it in plan.items][: max(0, cfg.daily_target - len(pinned))]
     store.save_plan(plan)
     log.info("Plan regenerated: %d items.", len(plan.items))
     return plan
@@ -101,18 +101,14 @@ def next_due_item(plan: Plan | None = None, *, today: date | None = None) -> Pla
     return candidates[0]
 
 
-def tick(*, lang: str = "en", replan_if_empty: bool = True):
-    """Render the next due planned item. Regenerates the plan first if empty.
-
-    Returns the RunResult, or None if there was nothing to render.
-    """
+def _render_one(*, lang: str, replan_if_empty: bool):
+    """Render the single next-due planned item. Returns its RunResult or None."""
     plan = store.load_plan()
     if replan_if_empty and not any(it.status == "planned" for it in plan.items):
         plan = regenerate_plan()
 
     item = next_due_item(plan)
     if item is None:
-        log.info("autopilot tick: nothing due.")
         return None
 
     # Mark rendering so a concurrent tick won't double-render.
@@ -124,3 +120,27 @@ def tick(*, lang: str = "en", replan_if_empty: bool = True):
 
     from ..pipeline import render_planned_item
     return render_planned_item(item, lang=lang)
+
+
+def _rendered_today(today: date) -> int:
+    plan = store.load_plan()
+    return sum(1 for it in plan.items if it.status == "rendered" and it.scheduled_for == today)
+
+
+def tick(*, lang: str = "en", replan_if_empty: bool = True, max_items: int | None = None):
+    """Render today's batch of planned items, up to the daily target.
+
+    A single daily cron run produces the whole day's clips. Stops when the
+    daily target is reached or nothing is due. Returns the list of RunResults.
+    """
+    today = date.today()
+    cap = max_items if max_items is not None else store.load_config().daily_target
+    results = []
+    while _rendered_today(today) < cap:
+        result = _render_one(lang=lang, replan_if_empty=replan_if_empty)
+        if result is None:
+            break
+        results.append(result)
+    if not results:
+        log.info("autopilot tick: nothing due.")
+    return results

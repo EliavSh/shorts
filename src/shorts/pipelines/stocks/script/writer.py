@@ -70,7 +70,8 @@ def _load_system_prompt(lang: str, length_band: tuple[int, int] | None) -> str:
     )
 
 
-def _topic_to_user_message(ctx: TopicContext, format_hint: str | None) -> str:
+def _topic_to_user_message(ctx: TopicContext, format_hint: str | None,
+                           guidance: str | None = None) -> str:
     payload: dict[str, Any] = ctx.model_dump()
     instruction = "Choose the most fitting format and write the script."
     if format_hint:
@@ -81,17 +82,30 @@ def _topic_to_user_message(ctx: TopicContext, format_hint: str | None) -> str:
     if format_hint:
         extra = "\n\n## Format-specific rules\n\n" + formats.get_spec(format_hint).prompt_addendum
 
+    # Reviewer feedback on a previous version — this is a rewrite, not a fresh
+    # write. Address the notes directly while keeping the same topic + format.
+    feedback = ""
+    if guidance and guidance.strip():
+        feedback = (
+            "\n\n## Reviewer feedback to address (REWRITE)\n\n"
+            "A previous version of this exact video was rejected. Rewrite the "
+            "script to directly address every note below. Keep the same topic and "
+            "format; change only what the feedback calls for.\n\n"
+            f"{guidance.strip()}"
+        )
+
     return (
         f"{instruction}\n\n"
         "Topic context (JSON):\n"
         f"```json\n{json.dumps(payload, ensure_ascii=False, indent=2)}\n```"
-        f"{extra}"
+        f"{extra}{feedback}"
     )
 
 
 def write_script(ctx: TopicContext, *, model: str | None = None,
                  format_hint: str | None = None,
-                 length_band: tuple[int, int] | None = None) -> Script:
+                 length_band: tuple[int, int] | None = None,
+                 guidance: str | None = None) -> Script:
     """Generate a script for the given topic context.
 
     If `format_hint` is provided, that format's specific rules are appended to
@@ -115,7 +129,7 @@ def write_script(ctx: TopicContext, *, model: str | None = None,
 
     client = make_anthropic()
     system_prompt = _load_system_prompt(ctx.lang, length_band)
-    user_message = _topic_to_user_message(ctx, format_hint)
+    user_message = _topic_to_user_message(ctx, format_hint, guidance)
     chosen_model = model or s.claude_model
 
     log.info("Calling Claude (model=%s, lang=%s, hint=%s)", chosen_model, ctx.lang, format_hint)

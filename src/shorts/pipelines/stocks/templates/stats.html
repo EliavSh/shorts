@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Market Minute — stats</title>
+  <style>
+    :root {
+      --bg:#0b0e13; --surface:#161b22; --surface-2:#1c2230; --border:#2a313c;
+      --text:#e6edf3; --muted:#8b949e; --accent:#22c55e; --accent-d:#16a34a;
+      --radius:14px;
+    }
+    * { box-sizing:border-box; }
+    body { background:var(--bg); color:var(--text); margin:0;
+           font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif; }
+    a { color:var(--accent); text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    header { position:sticky; top:0; z-index:20; backdrop-filter:blur(10px);
+             background:rgba(11,14,19,.82); border-bottom:1px solid var(--border);
+             padding:14px 28px; display:flex; align-items:center; justify-content:space-between; }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .brand .dot { width:30px; height:30px; border-radius:9px;
+        background:linear-gradient(135deg,var(--accent),var(--accent-d));
+        display:grid; place-items:center; font-weight:800; color:#04130a; }
+    .brand h1 { margin:0; font-size:16px; }
+    .brand small { color:var(--muted); display:block; font-size:11px; }
+    nav.tabs { display:flex; gap:4px; }
+    nav.tabs a { color:var(--muted); padding:7px 13px; border-radius:9px; font-weight:600; font-size:14px; }
+    nav.tabs a:hover { color:var(--text); background:var(--surface); text-decoration:none; }
+    nav.tabs a.active { color:var(--accent); background:rgba(34,197,94,.1); }
+    .wrap { max-width:1000px; margin:0 auto; padding:26px 28px 60px; }
+    .kpi { background:linear-gradient(135deg,var(--surface-2),var(--surface)); border:1px solid var(--border);
+        border-radius:var(--radius); padding:22px 24px; margin-bottom:26px; }
+    .kpi .n { font-size:38px; font-weight:800; line-height:1; }
+    .kpi .l { color:var(--muted); margin-top:6px; }
+    .cols { display:grid; gap:22px; grid-template-columns:1fr 1fr; }
+    @media (max-width:760px){ .cols { grid-template-columns:1fr; } }
+    .panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+    .panel h2 { margin:0; font-size:15px; padding:14px 18px; border-bottom:1px solid var(--border); }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th { color:var(--muted); text-align:left; font-weight:600; padding:9px 18px; font-size:12px; }
+    td { padding:9px 18px; border-top:1px solid var(--border); }
+    .bar { height:7px; border-radius:4px; background:linear-gradient(90deg,var(--accent),var(--accent-d)); }
+    .barbg { background:var(--surface-2); border-radius:4px; overflow:hidden; }
+    .muted { color:var(--muted); }
+    .empty { color:var(--muted); padding:42px 24px; text-align:center; }
+    .num { text-align:right; font-variant-numeric:tabular-nums; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="dot">M</div>
+      <div><h1>Market Minute</h1><small>coverage stats</small></div>
+    </div>
+    <nav class="tabs">
+      <a href="{{ url_prefix }}/">Today</a>
+      <a href="{{ url_prefix }}/stats" class="active">Stats</a>
+      <a href="{{ url_prefix }}/plan">Plan</a>
+      <a href="{{ url_prefix }}/tune">Tune</a>
+      <a href="/">All pipelines</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <div class="kpi">
+      <div class="n">{{ total }}</div>
+      <div class="l">clips published (unlisted) to YouTube — all-time</div>
+    </div>
+
+    {% if total == 0 %}
+      <div class="panel"><div class="empty">
+        No published clips yet. Publish a clip from <a href="{{ url_prefix }}/">Today</a>
+        and its sector/format trace will show up here.
+      </div></div>
+    {% else %}
+    {% set max_sector = (sector_rows | map(attribute='count') | max) or 1 %}
+    <div class="cols">
+      <div class="panel">
+        <h2>By sector</h2>
+        <table>
+          <thead><tr><th>Sector</th><th>Published</th><th>Target weight</th></tr></thead>
+          <tbody>
+            {% for r in sector_rows %}
+            <tr>
+              <td>{{ r.name }}
+                <div class="barbg" style="margin-top:5px">
+                  <div class="bar" style="width:{{ (r.count / max_sector * 100)|round|int }}%"></div>
+                </div>
+              </td>
+              <td class="num">{{ r.count }}</td>
+              <td class="num muted">{{ r.weight if r.weight is not none else '—' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <h2>By format</h2>
+        <table>
+          <thead><tr><th>Format</th><th>Published</th></tr></thead>
+          <tbody>
+            {% for r in format_rows %}
+            <tr><td>{{ r.name.replace('_',' ') }}</td><td class="num">{{ r.count }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:22px">
+      <h2>Recently published</h2>
+      <table>
+        <thead><tr><th>When</th><th>Title</th><th>Sector</th><th>Link</th></tr></thead>
+        <tbody>
+          {% for e in recent %}
+          <tr>
+            <td class="muted">{{ e.published_at[:16].replace('T',' ') }}</td>
+            <td>{{ e.title or e.slug }}</td>
+            <td class="muted">{{ e.sector }}</td>
+            <td>{% if e.youtube_url %}<a href="{{ e.youtube_url }}" target="_blank">YouTube ↗</a>{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </main>
+</body>
+</html>

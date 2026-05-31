@@ -100,6 +100,39 @@ def emit_review_state(
     return short
 
 
+def emit_next_version(*, slug: str, script) -> Path:
+    """Append a NEW version (vN+1) to an existing review item and return its
+    short.mp4 path. Used by the comment→regenerate flow so prior versions stay
+    on disk until the clip is published or deleted.
+
+    Falls back to a fresh v1 if the item doesn't exist yet.
+    """
+    existing = _review_store.load(slug)
+    if existing is None:
+        return emit_review_state(slug=slug, script=script)
+
+    now = datetime.now().isoformat(timespec="seconds")
+    captions = [b.caption for b in script.beats if getattr(b, "caption", None)]
+    hook = next((b.narration for b in script.beats if b.role == "hook"),
+                script.beats[0].narration if script.beats else "")
+    description = " ".join(b.narration for b in script.beats)
+    tags = [h.lstrip("#") for h in getattr(script, "description_hashtags", [])]
+
+    next_v = existing.current_version + 1
+    existing.versions.append(Version(
+        v=next_v, title=script.title, description=description,
+        hook_text=hook, captions=captions, tags=tags, created_at=now,
+    ))
+    existing.current_version = next_v
+    existing.source_title = script.title
+    existing.status = "ready"
+    _review_store.save(existing)
+
+    short = _review_store.short_path(slug, next_v)
+    short.parent.mkdir(parents=True, exist_ok=True)
+    return short
+
+
 def run_daily(*, lang: str = "en", force: bool = False) -> RunResult | None:
     """End-to-end render for today's topic. Stops before upload."""
     try:
@@ -274,6 +307,84 @@ def render_planned_item(item, *, lang: str = "en") -> RunResult | None:
     set_current_video(None)
     log.info("[%s] planned render done.", slug)
     return RunResult(slug=slug, topic_id=topic_row.id, script_id=script_row.id,
+                     render_id=render_row.id, mp4_path=mp4_path, duration_s=duration_s)
+
+
+def regenerate_clip(slug: str, *, lang: str = "en", guidance: str = "") -> RunResult | None:
+    """Re-render an existing clip as a new version, addressing reviewer feedback.
+
+    Recovers the original topic context + format + length from the DB (so the
+    rewrite stays on the same topic/format), re-runs the script writer and the
+    visual director with `guidance` (the reviewer's comments), and appends the
+    result as vN+1 in the review store. Returns None if the topic context for
+    the slug can't be recovered.
+    """
+    from .script.schemas import Script as ScriptModel
+    from .script.schemas import TopicContext
+
+    s = get_settings()
+    s.ensure_dirs()
+    from .db import init_db
+    init_db()
+
+    # Recover the source topic + prior script from the most recent render row.
+    with Session(get_engine()) as session:
+        render_row = session.exec(
+            select(RenderRow).where(RenderRow.mp4_path.contains(slug))
+            .order_by(RenderRow.id.desc())
+        ).first()
+        if render_row is None:
+            log.error("regenerate_clip %s: no render row found", slug)
+            return None
+        script_row = session.get(ScriptRow, render_row.script_id)
+        topic_row = session.get(TopicRow, script_row.topic_id) if script_row else None
+
+    if topic_row is None or not topic_row.raw_context:
+        log.error("regenerate_clip %s: missing topic context", slug)
+        return None
+
+    try:
+        ctx = TopicContext.model_validate(topic_row.raw_context)
+    except Exception as e:
+        log.error("regenerate_clip %s: bad topic context: %s", slug, e)
+        return None
+
+    prior = ScriptModel.model_validate(script_row.payload) if script_row else None
+    fmt = prior.format if prior else None
+    target = getattr(prior, "target_seconds", None) if prior else None
+    band = (int(target), int(target)) if target else None
+
+    set_current_video(slug)
+    log.info("[%s] regenerating (format=%s, guidance=%.60s)", slug, fmt, guidance)
+
+    script = write_script(ctx, format_hint=fmt, length_band=band, guidance=guidance)
+
+    try:
+        from .planner.debt_extract import extract_and_record
+        extract_and_record(script, source_slug=slug)
+    except Exception as e:
+        log.warning("[%s] debt extraction failed: %s", slug, e)
+
+    with Session(get_engine()) as session:
+        new_script_row = ScriptRow(topic_id=topic_row.id, lang=lang, payload=script.model_dump())
+        session.add(new_script_row); session.commit(); session.refresh(new_script_row)
+
+    work_dir = s.output_dir / slug
+    tts = synthesize(text=script.narration_text(), lang=lang, out_dir=work_dir)
+    mp4_path = emit_next_version(slug=slug, script=script)
+    compose_video(script=script, tts=tts, out_path=mp4_path, guidance=guidance)
+    duration_s = float(tts.duration_s)
+
+    with Session(get_engine()) as session:
+        render_row = RenderRow(
+            script_id=new_script_row.id, mp4_path=str(mp4_path),
+            duration_s=duration_s, audio_path=str(tts.audio_path),
+        )
+        session.add(render_row); session.commit(); session.refresh(render_row)
+
+    set_current_video(None)
+    log.info("[%s] regeneration done.", slug)
+    return RunResult(slug=slug, topic_id=topic_row.id, script_id=new_script_row.id,
                      render_id=render_row.id, mp4_path=mp4_path, duration_s=duration_s)
 
 

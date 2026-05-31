@@ -3,151 +3,246 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Stocks — review</title>
+  <title>Market Minute — staging</title>
   <style>
-    body { background:#0e1116; color:#e6edf3; font:15px/1.55 system-ui, sans-serif; margin:0; }
-    header { padding:18px 28px; border-bottom:1px solid #30363d; display:flex;
-             justify-content:space-between; align-items:center; }
-    header h1 { margin:0; font-size:18px; }
-    header h1 span { color:#22C55E; }
-    a { color:#22C55E; text-decoration:none; }
+    :root {
+      --bg:#0b0e13; --surface:#161b22; --surface-2:#1c2230; --border:#2a313c;
+      --text:#e6edf3; --muted:#8b949e; --accent:#22c55e; --accent-d:#16a34a;
+      --danger:#f85149; --amber:#f0b400; --cyan:#22d3ee;
+      --radius:14px; --shadow:0 6px 24px rgba(0,0,0,.35);
+    }
+    * { box-sizing:border-box; }
+    body { background:var(--bg); color:var(--text); margin:0;
+           font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif; }
+    a { color:var(--accent); text-decoration:none; }
     a:hover { text-decoration:underline; }
-    nav a { margin-left: 16px; }
-    .wrap { max-width:1100px; margin:0 auto; padding:24px 28px; }
-    .card { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:18px;
-            margin-bottom:16px; }
-    .row { display:flex; gap:18px; align-items:flex-start; }
-    video { max-width:300px; width:100%; aspect-ratio:9/16; border-radius:8px; background:#000; }
-    .empty { color:#7d8590; padding:60px; text-align:center; }
-    code { background:#21262d; padding:2px 6px; border-radius:4px; }
-    input, select { padding:10px 12px; border-radius:8px; border:1px solid #30363d;
-                    background:#0d1117; color:#e6edf3; font:inherit; }
-    button { font:inherit; padding:10px 18px; border-radius:8px; border:1px solid #22C55E;
-             background:#22C55E; color:#000; cursor:pointer; font-weight:700; }
-    button.publish { background:#2ea043; border-color:#2ea043; color:white; }
-    .badge { display:inline-block; font-size:12px; padding:3px 10px; border-radius:999px;
-             font-weight:600; }
-    .badge.ready { background:#033a16; color:#2ea043; }
-    .badge.processing { background:#3a2a00; color:#f0b400; }
-    .badge.publishing { background:#1a3a3a; color:#22d3ee; }
+
+    header { position:sticky; top:0; z-index:20; backdrop-filter:blur(10px);
+             background:rgba(11,14,19,.82); border-bottom:1px solid var(--border);
+             padding:14px 28px; display:flex; align-items:center; justify-content:space-between; }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .brand .dot { width:30px; height:30px; border-radius:9px;
+        background:linear-gradient(135deg,var(--accent),var(--accent-d));
+        display:grid; place-items:center; font-weight:800; color:#04130a; box-shadow:var(--shadow); }
+    .brand h1 { margin:0; font-size:16px; letter-spacing:.2px; }
+    .brand small { color:var(--muted); display:block; font-size:11px; font-weight:500; }
+    nav.tabs { display:flex; gap:4px; }
+    nav.tabs a { color:var(--muted); padding:7px 13px; border-radius:9px; font-weight:600; font-size:14px; }
+    nav.tabs a:hover { color:var(--text); background:var(--surface); text-decoration:none; }
+    nav.tabs a.active { color:var(--accent); background:rgba(34,197,94,.1); }
+
+    .wrap { max-width:1180px; margin:0 auto; padding:26px 28px 60px; }
+
+    .toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px;
+               margin-bottom:24px; flex-wrap:wrap; }
+    .toolbar form { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    select, input, textarea, button { font:inherit; }
+    select, input[type=text] { padding:9px 12px; border-radius:10px; border:1px solid var(--border);
+        background:#0d1117; color:var(--text); }
+    .btn { padding:9px 16px; border-radius:10px; border:1px solid transparent; cursor:pointer;
+        font-weight:700; transition:transform .08s ease, filter .15s ease; }
+    .btn:active { transform:translateY(1px); }
+    .btn-primary { background:linear-gradient(135deg,var(--accent),var(--accent-d)); color:#04130a; }
+    .btn-primary:hover { filter:brightness(1.08); }
+    .btn-ghost { background:var(--surface); border-color:var(--border); color:var(--text); }
+    .btn-ghost:hover { background:var(--surface-2); }
+    .btn[disabled] { opacity:.45; cursor:not-allowed; }
+
+    .counter { color:var(--muted); font-size:14px; }
+    .counter b { color:var(--text); }
+
+    .section-head { display:flex; align-items:baseline; gap:10px; margin:30px 0 14px; }
+    .section-head h2 { margin:0; font-size:18px; }
+    .section-head .sub { color:var(--muted); font-size:13px; }
+
+    .grid { display:grid; gap:18px; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); }
+
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+        overflow:hidden; display:flex; flex-direction:column; transition:transform .12s ease, border-color .15s ease; }
+    .card:hover { transform:translateY(-3px); border-color:#3a4452; }
+    .card video { width:100%; aspect-ratio:9/16; background:#000; display:block; }
+    .card .body { padding:13px 14px 15px; display:flex; flex-direction:column; gap:10px; flex:1; }
+    .card h3 { margin:0; font-size:14.5px; line-height:1.35; }
+
+    .pill { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700;
+        padding:3px 9px; border-radius:999px; }
+    .pill.ready { background:rgba(34,197,94,.14); color:#3fcf6a; }
+    .pill.processing { background:rgba(240,180,0,.14); color:var(--amber); }
+    .pill.publishing { background:rgba(34,211,238,.14); color:var(--cyan); }
+    .pill.ver { background:var(--surface-2); color:var(--muted); }
+
+    .chips { display:flex; flex-wrap:wrap; gap:6px; }
+    .chip { font-size:11px; color:var(--muted); background:var(--surface-2);
+        border:1px solid var(--border); padding:2px 8px; border-radius:7px; }
+
+    .comment { display:flex; gap:6px; }
+    .comment input { flex:1; min-width:0; padding:8px 10px; font-size:13px; }
+    .comment button { padding:8px 12px; }
+
+    .actions { display:flex; gap:8px; align-items:center; margin-top:auto; }
+    .actions form { flex:1; }
+    .actions .btn { width:100%; }
+    .icon-btn { background:transparent; border:1px solid var(--border); color:var(--muted);
+        border-radius:10px; width:38px; height:38px; cursor:pointer; font-size:15px; }
+    .icon-btn:hover { color:var(--danger); border-color:var(--danger); }
+
+    .empty { border:1px dashed var(--border); border-radius:var(--radius); color:var(--muted);
+        padding:48px 24px; text-align:center; background:var(--surface); }
+
+    details.activity { margin-top:40px; border:1px solid var(--border); border-radius:var(--radius);
+        background:var(--surface); overflow:hidden; }
+    details.activity summary { cursor:pointer; padding:14px 18px; color:var(--muted); font-weight:600;
+        list-style:none; }
+    details.activity summary::-webkit-details-marker { display:none; }
+    details.activity[open] summary { border-bottom:1px solid var(--border); color:var(--text); }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th { color:var(--muted); text-align:left; font-weight:600; padding:8px 18px; }
+    td { padding:8px 18px; border-top:1px solid var(--border); }
+    pre { font-size:11px; color:var(--muted); white-space:pre-wrap; margin:6px 0 0; }
   </style>
 </head>
 <body>
   <header>
-    <h1><span>stocks</span>shorts • review</h1>
-    <nav>
-      <a href="/">← all pipelines</a>
-      <a href="/stocks/plan">content plan</a>
-      <a href="/stocks/tune">tune</a>
-      <a href="/stocks/feedback">global feedback</a>
+    <div class="brand">
+      <div class="dot">M</div>
+      <div>
+        <h1>Market Minute</h1>
+        <small>staging · review &amp; publish</small>
+      </div>
+    </div>
+    <nav class="tabs">
+      <a href="{{ url_prefix }}/" class="active">Today</a>
+      <a href="{{ url_prefix }}/stats">Stats</a>
+      <a href="{{ url_prefix }}/plan">Plan</a>
+      <a href="{{ url_prefix }}/tune">Tune</a>
+      <a href="/">All pipelines</a>
     </nav>
   </header>
+
   <main class="wrap">
-    <div class="card" style="background:#1c2521">
-      <h2 style="margin-top:0">Generate new render</h2>
-      <form method="post" action="/stocks/generate" style="display:flex; gap:10px; flex-wrap:wrap">
+    <div class="toolbar">
+      <form method="post" action="{{ url_prefix }}/generate">
         <select name="mode">
           <option value="daily">Daily — pick today's topic automatically</option>
           <option value="fixture">From fixture slug</option>
         </select>
-        <input type="text" name="fixture_slug" placeholder="(only for fixture mode) e.g. nvda_q1fy27"
-               style="flex:1; min-width:240px" />
-        <button type="submit">Generate</button>
+        <input type="text" name="fixture_slug" placeholder="fixture slug (fixture mode)" />
+        <button class="btn btn-primary" type="submit">+ Generate clip</button>
       </form>
+      <div class="counter"><b>{{ today_items|length }}</b> / {{ daily_target }} staged today</div>
     </div>
 
-    {% if jobs %}
-      <div class="card" style="background:#1c1f25">
-        <h2 style="margin-top:0">Recent jobs ({{ jobs|length }})</h2>
-        <table style="width:100%; border-collapse: collapse; font-size:13px">
-          <thead style="color:#7d8590; text-align:left">
-            <tr>
-              <th style="padding:6px 8px">Status</th>
-              <th style="padding:6px 8px">Kind</th>
-              <th style="padding:6px 8px">Target</th>
-              <th style="padding:6px 8px">Started</th>
-              <th style="padding:6px 8px">Finished</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for j in jobs %}
-              <tr style="border-top: 1px solid #30363d">
-                <td style="padding:6px 8px">
-                  {% if j.status == 'running' %}<span style="color:#f0b400">🔄 running</span>
-                  {% elif j.status == 'done' %}<span style="color:#2ea043">✓ done</span>
-                  {% else %}<span style="color:#f85149">✗ failed</span>
-                  {% endif %}
-                </td>
-                <td style="padding:6px 8px"><code>{{ j.kind }}</code></td>
-                <td style="padding:6px 8px; max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">
-                  {{ j.label }}
-                </td>
-                <td style="padding:6px 8px; color:#7d8590">{{ j.started_at }}</td>
-                <td style="padding:6px 8px; color:#7d8590">{{ j.finished_at or '—' }}</td>
-              </tr>
-              {% if j.status == 'failed' and j.log_tail %}
-                <tr style="border-top: 1px solid #30363d">
-                  <td colspan="5" style="padding:6px 8px; background:#1a0e0e">
-                    <details>
-                      <summary style="color:#f85149; cursor:pointer">show last log lines</summary>
-                      <pre style="font-size:11px; color:#7d8590; white-space:pre-wrap; margin:8px 0 0">{{ j.log_tail }}</pre>
-                    </details>
-                  </td>
-                </tr>
-              {% endif %}
-            {% endfor %}
-          </tbody>
-        </table>
-        {% set any_running = jobs|selectattr('status','equalto','running')|list %}
-        {% if any_running %}
-          <script>
-            // Auto-refresh every 10s while jobs are running
-            setTimeout(() => window.location.reload(), 10000);
-          </script>
+    {% macro clip_card(item) %}
+      {% set lv = latest_version_of(item) %}
+      {% set m = meta.get(item.run_id, {}) %}
+      <div class="card">
+        {% if lv %}
+          <video controls preload="metadata"
+                 src="{{ url_prefix }}/video/{{ item.run_id }}/v{{ lv.v }}"></video>
         {% endif %}
+        <div class="body">
+          <div class="chips" style="justify-content:space-between">
+            <span class="pill {{ item.status }}">
+              {% if item.status == 'processing' %}● Improving
+              {% elif item.status == 'publishing' %}● Uploading
+              {% else %}● Ready{% endif %}
+            </span>
+            {% if item.current_version and item.current_version > 1 %}
+              <span class="pill ver">v{{ item.current_version }} · edited</span>
+            {% endif %}
+          </div>
+          <h3>{{ lv.title if lv else item.source_title }}</h3>
+          <div class="chips">
+            {% if m.format %}<span class="chip">{{ m.format.replace('_',' ') }}</span>{% endif %}
+            {% if m.sector %}<span class="chip">{{ m.sector }}</span>{% endif %}
+            {% if m.duration_s %}<span class="chip">{{ m.duration_s|round|int }}s</span>{% endif %}
+            {% for t in m.tickers %}<span class="chip">{{ t }}</span>{% endfor %}
+          </div>
+
+          <form class="comment" method="post" action="{{ url_prefix }}/run/{{ item.run_id }}/comment">
+            <input type="text" name="text" placeholder="What to fix? (e.g. add Q revenue)"
+                   {% if item.status != 'ready' %}disabled{% endif %} />
+            <button class="btn btn-ghost" type="submit"
+                    {% if item.status != 'ready' %}disabled{% endif %}>Improve</button>
+          </form>
+
+          <div class="actions">
+            <form method="post" action="{{ url_prefix }}/run/{{ item.run_id }}/publish">
+              <button class="btn btn-primary" type="submit"
+                      {% if item.status != 'ready' %}disabled{% endif %}>
+                {% if item.status == 'publishing' %}Uploading…{% else %}Publish (unlisted){% endif %}
+              </button>
+            </form>
+            <form method="post" action="{{ url_prefix }}/run/{{ item.run_id }}/delete"
+                  onsubmit="return confirm('Delete this clip from the stage?');">
+              <button class="icon-btn" type="submit" title="Reject &amp; delete">✕</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endmacro %}
+
+    <div class="section-head">
+      <h2>Today</h2>
+      <span class="sub">your daily batch — improve with a note, then publish unlisted</span>
+    </div>
+    {% if today_items %}
+      <div class="grid">
+        {% for item in today_items %}{{ clip_card(item) }}{% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">
+        No clips staged for today yet.<br><br>
+        Hit <b>+ Generate clip</b> above — or let the auto-pilot stage today's batch of {{ daily_target }}.
       </div>
     {% endif %}
 
-    <h2>Queued renders</h2>
-    {% if not items %}
-      <div class="empty">
-        No stocks runs yet.<br><br>
-        Click "Generate" above to start one.
+    {% if earlier_items %}
+      <div class="section-head">
+        <h2>Pending from earlier</h2>
+        <span class="sub">not yet published — clean these up before they pile up</span>
       </div>
-    {% else %}
-      {% for item in items %}
-        {% set lv = latest_version_of(item) %}
-        <div class="card">
-          <div class="row">
-            {% if lv %}
-              <video controls preload="metadata"
-                     src="{{ url_prefix }}/video/{{ item.run_id }}/v{{ lv.v }}"></video>
-            {% endif %}
-            <div style="flex:1">
-              <span class="badge {{ item.status }}">
-                {% if item.status == 'processing' %}🔄 processing
-                {% elif item.status == 'publishing' %}📤 uploading
-                {% else %}✓ ready{% endif %}
-              </span>
-              <h3 style="margin:8px 0 4px">{{ lv.title if lv else item.source_title }}</h3>
-              <div style="color:#7d8590; font-size:13px">
-                {{ item.creator_handle or '—' }} • v{{ item.current_version }}
-              </div>
-              {% if lv %}
-                <p style="color:#7d8590; margin-top:10px">{{ lv.description[:300] }}</p>
-              {% endif %}
-              <form method="post" action="/stocks/run/{{ item.run_id }}/publish"
-                    style="margin-top:14px">
-                <button class="publish" type="submit"
-                        {% if item.status != 'ready' %}disabled{% endif %}>
-                  {% if item.status == 'publishing' %}📤 Uploading...{% else %}Publish to stocks YouTube{% endif %}
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      {% endfor %}
+      <div class="grid">
+        {% for item in earlier_items %}{{ clip_card(item) }}{% endfor %}
+      </div>
     {% endif %}
+
+    {% set any_running = jobs|selectattr('status','equalto','running')|list %}
+    <details class="activity" {% if any_running %}open{% endif %}>
+      <summary>
+        Activity{% if any_running %} · {{ any_running|length }} running{% endif %}
+      </summary>
+      {% if jobs %}
+      <table>
+        <thead><tr><th>Status</th><th>Kind</th><th>Target</th><th>Started</th><th>Finished</th></tr></thead>
+        <tbody>
+          {% for j in jobs %}
+            <tr>
+              <td>
+                {% if j.status == 'running' %}<span style="color:var(--amber)">running</span>
+                {% elif j.status == 'done' %}<span style="color:var(--accent)">done</span>
+                {% else %}<span style="color:var(--danger)">failed</span>{% endif %}
+              </td>
+              <td><code>{{ j.kind }}</code></td>
+              <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ j.label }}</td>
+              <td style="color:var(--muted)">{{ j.started_at }}</td>
+              <td style="color:var(--muted)">{{ j.finished_at or '—' }}</td>
+            </tr>
+            {% if j.status == 'failed' and j.log_tail %}
+              <tr><td colspan="5" style="background:#1a0e0e">
+                <details><summary style="color:var(--danger);cursor:pointer">show last log lines</summary>
+                <pre>{{ j.log_tail }}</pre></details>
+              </td></tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <div style="padding:18px;color:var(--muted)">No jobs yet.</div>
+      {% endif %}
+    </details>
   </main>
+
+  {% if any_running %}<script>setTimeout(() => location.reload(), 10000);</script>{% endif %}
 </body>
 </html>

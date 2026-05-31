@@ -84,7 +84,9 @@ class OrchestrationConfig(BaseModel):
     """Sector name -> relative weight. Higher = more videos about it."""
     type_mix: dict[str, float] = Field(default_factory=dict)
     """Format name -> relative weight in the fill mix."""
-    weekly_volume: int = 5
+    daily_target: int = 3
+    """How many clips to stage per day (the daily batch the dashboard shows)."""
+    weekly_volume: int = 3  # legacy alias; daily_target is the active knob
     cadence_days: int = 1
     series: list[Series] = Field(default_factory=list)
     free_text_directive: str = ""

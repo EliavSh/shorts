@@ -62,14 +62,68 @@ def _trigger_autopilot_tick() -> None:
     )
 
 
+def _trigger_regen(slug: str) -> None:
+    job_mod.start(
+        PIPELINE, "regen", slug,
+        [sys.executable, "-m", "shorts.cli", "stocks", "regen", slug],
+        cwd=str(REPO_ROOT),
+    )
+
+
+def _clip_meta(run_id: str, version: int) -> dict:
+    """Best-effort {format, sector, tickers, duration_s} from a render manifest."""
+    import json as _json
+
+    from .planner.published import sector_for
+
+    manifest = _store.short_path(run_id, version).with_suffix(".manifest.json")
+    meta = {"format": "", "sector": "", "tickers": [], "duration_s": None}
+    if manifest.exists():
+        try:
+            m = _json.loads(manifest.read_text(encoding="utf-8"))
+            meta["format"] = m.get("format", "")
+            meta["tickers"] = [t.get("ticker", "") for t in m.get("tickers", []) if t.get("ticker")]
+            meta["duration_s"] = m.get("duration_s")
+            if meta["tickers"]:
+                meta["sector"] = sector_for(meta["tickers"][0])
+        except Exception:
+            pass
+    return meta
+
+
 @router.get("/", response_class=HTMLResponse)
 def index(request: Request) -> Any:
-    items = _store.list_items()
+    from datetime import date
+
+    today = date.today().isoformat()
+    today_items: list = []
+    earlier_items: list = []
+    meta: dict[str, dict] = {}
+    for item in _store.list_items():
+        if item.run_id.startswith("_"):
+            continue
+        lv = latest_version(item)
+        meta[item.run_id] = _clip_meta(item.run_id, lv.v) if lv else {}
+        if (item.created_at or "")[:10] == today:
+            today_items.append(item)
+        else:
+            earlier_items.append(item)
+
+    cfg = None
+    try:
+        from .planner import store as plan_store
+        cfg = plan_store.load_config()
+    except Exception:
+        pass
+
     jobs = job_mod.list_jobs(PIPELINE, limit=20)
     return templates.TemplateResponse(
         request, "index.html",
         {
-            "items": items,
+            "today_items": today_items,
+            "earlier_items": earlier_items,
+            "meta": meta,
+            "daily_target": cfg.daily_target if cfg else 3,
             "latest_version_of": latest_version,
             "url_prefix": "/stocks",
             "jobs": jobs,
@@ -116,6 +170,71 @@ def publish(run_id: str, background_tasks: BackgroundTasks) -> RedirectResponse:
     _store.save(item)
     background_tasks.add_task(_trigger_publish, run_id)
     return RedirectResponse(url=f"/stocks/", status_code=303)
+
+
+@router.post("/run/{run_id}/comment")
+def comment(run_id: str, background_tasks: BackgroundTasks,
+            text: str = Form(...)) -> RedirectResponse:
+    """Leave a note on a clip → re-render it as a new version addressing the note."""
+    text = text.strip()
+    if not text:
+        return RedirectResponse(url="/stocks/", status_code=303)
+    item = _store.add_comment(run_id, text)  # sets status="processing"
+    if item is None:
+        raise HTTPException(404, "Run not found")
+    background_tasks.add_task(_trigger_regen, run_id)
+    return RedirectResponse(url="/stocks/?improving=1", status_code=303)
+
+
+@router.post("/run/{run_id}/delete")
+def delete(run_id: str) -> RedirectResponse:
+    """Reject a clip — remove it from the stage. No auto-replacement."""
+    import shutil
+
+    run_dir = _store.output_root / run_id
+    if run_dir.exists():
+        shutil.rmtree(run_dir, ignore_errors=True)
+    return RedirectResponse(url="/stocks/", status_code=303)
+
+
+@router.get("/stats", response_class=HTMLResponse)
+def stats_page(request: Request) -> Any:
+    """Simple coverage stats from the published ledger (vs the tuning weights)."""
+    from collections import Counter
+
+    from .planner import store as plan_store
+    from .planner.published import load_published
+
+    ledger = load_published()
+    cfg = plan_store.load_config()
+
+    by_sector = Counter(e.sector for e in ledger.entries)
+    by_format = Counter(e.format or "(unknown)" for e in ledger.entries)
+    total = len(ledger.entries)
+
+    # Sector rows: published count vs the user's sector_bias weight.
+    sector_keys = set(by_sector) | set(cfg.sector_bias or {})
+    sector_rows = sorted(
+        ({"name": k, "count": by_sector.get(k, 0), "weight": (cfg.sector_bias or {}).get(k)}
+         for k in sector_keys),
+        key=lambda r: (-r["count"], r["name"]),
+    )
+    format_rows = sorted(
+        ({"name": k, "count": v} for k, v in by_format.items()),
+        key=lambda r: (-r["count"], r["name"]),
+    )
+    recent = list(reversed(ledger.entries))[:20]
+
+    return templates.TemplateResponse(
+        request, "stats.html",
+        {
+            "url_prefix": "/stocks",
+            "total": total,
+            "sector_rows": sector_rows,
+            "format_rows": format_rows,
+            "recent": recent,
+        },
+    )
 
 
 @router.get("/feedback", response_class=HTMLResponse)
@@ -280,8 +399,7 @@ def tune_page(request: Request) -> Any:
 @router.post("/tune")
 def tune_submit(
     background_tasks: BackgroundTasks,
-    weekly_volume: int = Form(5),
-    cadence_days: int = Form(1),
+    daily_target: int = Form(3),
     sector_bias: str = Form(""),
     type_mix: str = Form(""),
     directive: str = Form(""),
@@ -295,8 +413,8 @@ def tune_submit(
     from .planner.orchestrate import regenerate_plan
 
     cfg = plan_store.load_config()
-    cfg.weekly_volume = max(1, min(int(weekly_volume), 14))
-    cfg.cadence_days = max(1, int(cadence_days))
+    cfg.daily_target = max(1, min(int(daily_target), 14))
+    cfg.weekly_volume = cfg.daily_target  # keep legacy alias in sync
     cfg.sector_bias = _parse_weights(sector_bias)
     cfg.type_mix = _parse_weights(type_mix)
     cfg.free_text_directive = directive.strip()
