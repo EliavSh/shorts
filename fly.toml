@@ -21,6 +21,12 @@ primary_region = "fra"   # Frankfurt — closest to Israel; switch to "iad"/"sjc
 
 [env]
   PORT = "8000"
+  # YouTube uploader: non-secret paths + channel id. The credential JSON files
+  # themselves are decoded from base64 Fly secrets at boot (see entrypoint.sh):
+  #   fly secrets set STOCKS_YOUTUBE_CLIENT_JSON_B64=... STOCKS_YOUTUBE_TOKEN_JSON_B64=...
+  STOCKS_YOUTUBE_CLIENT_SECRET_PATH = "/app/secrets/stocks_youtube_client.json"
+  STOCKS_YOUTUBE_TOKEN_PATH = "/app/secrets/stocks_youtube_token.json"
+  STOCKS_YOUTUBE_CHANNEL_ID = "UC20s_G6hzw5czR5q6_KualQ"
 
 [[mounts]]
   source = "shorts_data"
