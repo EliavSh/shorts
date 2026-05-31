@@ -25,5 +25,6 @@ seed_pipeline() {
 }
 
 seed_pipeline stocks /app/deploy/seed/stocks_clips.tgz /app/data/stocks/output
+seed_pipeline brawl  /app/deploy/seed/brawl_clips.tgz  /app/data/brawl/output
 
 exec "$@"
