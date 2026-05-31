@@ -122,25 +122,54 @@ def _render_one(*, lang: str, replan_if_empty: bool):
     return render_planned_item(item, lang=lang)
 
 
-def _rendered_today(today: date) -> int:
-    plan = store.load_plan()
-    return sum(1 for it in plan.items if it.status == "rendered" and it.scheduled_for == today)
+def _generated_today(today: date) -> int:
+    """Durable count of clips produced today: staged (review store, by
+    `created_at`) + uploaded (published ledger, by `published_at`).
+
+    Counting from produced artifacts rather than the plan means the daily
+    ceiling holds even when the plan is regenerated mid-day (each slot replans
+    for freshness) and after a clip is purged on upload.
+    """
+    iso = today.isoformat()
+    n = 0
+    try:
+        from shorts.core.reviews import ReviewStore
+        for it in ReviewStore("stocks").list_items():
+            if (getattr(it, "created_at", "") or "")[:10] == iso:
+                n += 1
+    except Exception as e:
+        log.debug("review-store day count failed: %s", e)
+    try:
+        from .published import load_published
+        for e in load_published().entries:
+            if (getattr(e, "published_at", "") or "")[:10] == iso:
+                n += 1
+    except Exception as e:
+        log.debug("ledger day count failed: %s", e)
+    return n
 
 
-def tick(*, lang: str = "en", replan_if_empty: bool = True, max_items: int | None = None):
-    """Render today's batch of planned items, up to the daily target.
+def tick(*, lang: str = "en", replan: bool = False, max_per_tick: int = 1):
+    """Render up to `max_per_tick` due clip(s) now, never exceeding the day's
+    `daily_target` ceiling.
 
-    A single daily cron run produces the whole day's clips. Stops when the
-    daily target is reached or nothing is due. Returns the list of RunResults.
+    Built for several scheduled runs per day (e.g. morning / noon / evening):
+    each run renders ONE fresh clip. Pass `replan=True` (the cron default) to
+    rebuild the plan from the latest movers + earnings first, so each slot
+    reflects the current market. The daily ceiling is counted durably from
+    produced clips, so it holds across replans and post-upload purges.
     """
     today = date.today()
-    cap = max_items if max_items is not None else store.load_config().daily_target
+    daily_cap = store.load_config().daily_target
+    if replan:
+        regenerate_plan(today=today)
     results = []
-    while _rendered_today(today) < cap:
-        result = _render_one(lang=lang, replan_if_empty=replan_if_empty)
+    while len(results) < max_per_tick and _generated_today(today) < daily_cap:
+        result = _render_one(lang=lang, replan_if_empty=True)
         if result is None:
             break
         results.append(result)
     if not results:
-        log.info("autopilot tick: nothing due.")
+        log.info("autopilot tick: nothing rendered (cap=%d, done_today=%d).",
+                 daily_cap, _generated_today(today))
     return results

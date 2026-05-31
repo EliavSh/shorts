@@ -15,7 +15,6 @@ from moviepy.audio.fx import AudioLoop, MultiplyVolume
 
 from .. import formats
 from ..script.schemas import Script
-from shorts.core.visuals.attribution import render_attribution
 from shorts.pipelines.stocks.visuals.brand import load_brand
 from shorts.core.visuals.captions import FRAME_H, FRAME_W, render_caption
 from ..visuals.disclaimer import render_disclaimer
@@ -31,8 +30,6 @@ log = logging.getLogger(__name__)
 
 FPS = 30
 FALLBACK_BG = (12, 24, 48)
-ATTRIBUTION_POS_Y_PCT = 0.86  # under the visual, above the caption pill region
-ATTRIBUTION_MARGIN = 32
 
 
 def _pick_music_bed(duration_s: float):
@@ -90,14 +87,10 @@ def compose_video(*, script: Script, tts: TTSResult, out_path: Path,
     for shot in shots:
         layers.append(shot_to_clip(shot))
 
-    # 2. Per-shot attribution credit.
-    for shot in shots:
-        if not shot.image.attribution:
-            continue
-        attr_img = render_attribution(brand, shot.image.attribution, max_width=720)
-        x = ATTRIBUTION_MARGIN
-        y = int(FRAME_H * ATTRIBUTION_POS_Y_PCT)
-        layers.append(pil_to_clip(attr_img, start_s=shot.start_s, end_s=shot.end_s, position=(x, y)))
+    # 2. Image credits are intentionally NOT burned into the frame (cleaner look).
+    #    Attribution is preserved in the sidecar manifest (`shots[].attribution`)
+    #    so credits can be surfaced in the YouTube description instead — which
+    #    keeps Wikimedia/CC-BY sources compliant without cluttering the video.
 
     # 3. Captions — script-text-anchored, timed from Whisper timings (R1).
     aligned = align_to_timings(script.narration_text(), tts.words)

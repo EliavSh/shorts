@@ -16,7 +16,13 @@ name: Stocks auto-pilot tick
 
 on:
   schedule:
-    - cron: "0 13 * * *"   # daily 13:00 UTC
+    # Three fresh clips a day. Times are UTC (GitHub cron has no timezone).
+    # Israel is UTC+2 (winter) / UTC+3 (summer), so these land ~morning / noon /
+    # evening Israel time. Each run replans from the latest market, then renders
+    # ONE clip; the dashboard's daily target (default 3) caps the day.
+    - cron: "0 6 * * *"    # ~08:00–09:00 Israel — morning
+    - cron: "0 10 * * *"   # ~12:00–13:00 Israel — noon
+    - cron: "0 16 * * *"   # ~18:00–19:00 Israel — evening
   workflow_dispatch: {}
 
 concurrency:

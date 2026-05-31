@@ -437,15 +437,24 @@ def autopilot() -> None:
 
 @autopilot.command("tick")
 @click.option("--lang", default="en", type=click.Choice(["en"]))
-@click.option("--max-items", type=int, default=None,
-              help="Cap clips this run (default: the daily target).")
-def autopilot_tick(lang: str, max_items: int | None) -> None:
-    """Render today's batch of planned items, up to the daily target."""
+@click.option("--replan/--no-replan", default=False,
+              help="Rebuild the plan from current movers/earnings first "
+                   "(use for scheduled morning/noon/evening runs so each picks "
+                   "fresh content). Default: render the next already-planned item.")
+@click.option("--max", "max_per_tick", type=int, default=1,
+              help="Clips to render this run (default 1). The daily target is "
+                   "still enforced across all runs.")
+def autopilot_tick(lang: str, replan: bool, max_per_tick: int) -> None:
+    """Render the next due clip(s), capped at the daily target.
+
+    One scheduled run = one fresh clip. Run it a few times a day for a
+    morning/noon/evening cadence.
+    """
     from .planner.orchestrate import tick
 
-    results = tick(lang=lang, max_items=max_items)
+    results = tick(lang=lang, replan=replan, max_per_tick=max_per_tick)
     if not results:
-        console.print("[yellow]Nothing due to render.[/yellow]")
+        console.print("[yellow]Nothing rendered (daily target reached or nothing due).[/yellow]")
         return
     console.print(f"[green]Rendered {len(results)} clip(s).[/green]")
     for r in results:

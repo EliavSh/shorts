@@ -156,10 +156,43 @@ def write_script(ctx: TopicContext, *, model: str | None = None,
             if isinstance(payload, dict) and set(payload.keys()) == {"script"} and isinstance(payload["script"], dict):
                 payload = payload["script"]
             script = Script.model_validate(payload)
+            _repair_format_constraints(script)
             _validate_format_constraints(script)
             return script
 
     raise RuntimeError(f"Claude did not emit a tool_use block. Stop reason: {response.stop_reason!r}")
+
+
+def _repair_format_constraints(script: Script) -> None:
+    """Trim excess tickers so the script honours its format's max.
+
+    The writer occasionally lists comparison stocks in `tickers[]` even for a
+    single-stock format (e.g. `deep_dive_one_stock` needs exactly 1). Rather than
+    crash the whole run, keep the most narratively-central tickers — ranked by
+    how many beats focus on each — up to the format's max. Under-min can't be
+    auto-fixed (we won't invent a stock), so that's still left to validation.
+    """
+    try:
+        spec = formats.get_spec(script.format)
+    except KeyError:
+        return  # unknown format — let _validate_format_constraints report it
+
+    n = len(script.tickers)
+    if spec.max_tickers >= 1 and n > spec.max_tickers:
+        focus_counts: dict[str, int] = {}
+        for b in script.beats:
+            tf = (b.ticker_focus or "").upper()
+            if tf:
+                focus_counts[tf] = focus_counts.get(tf, 0) + 1
+        order = {t.ticker.upper(): i for i, t in enumerate(script.tickers)}
+        ranked = sorted(
+            script.tickers,
+            key=lambda t: (-focus_counts.get(t.ticker.upper(), 0), order[t.ticker.upper()]),
+        )
+        keep = {t.ticker.upper() for t in ranked[: spec.max_tickers]}
+        script.tickers = [t for t in script.tickers if t.ticker.upper() in keep]
+        log.warning("trimmed tickers %d→%d for format %r (kept most-focused)",
+                    n, len(script.tickers), script.format)
 
 
 def _validate_format_constraints(script: Script) -> None:
@@ -180,5 +213,6 @@ def write_script_from_fixture(path: Path) -> Script:
     """Load a pre-recorded script JSON. Validates against schema + format constraints."""
     data = json.loads(path.read_text(encoding="utf-8"))
     script = Script.model_validate(data)
+    _repair_format_constraints(script)
     _validate_format_constraints(script)
     return script

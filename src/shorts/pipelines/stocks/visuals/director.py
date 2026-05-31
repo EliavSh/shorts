@@ -128,21 +128,27 @@ A) RETRIEVAL MODE — for sections that depict PEOPLE, PLACES, BUILDINGS, PRODUC
                  "A semiconductor wafer being inspected by a worker in a yellow cleanroom suit."
                  "Jensen Huang on stage in his black leather jacket at GTC."
 
-B) GENERATED-GRAPHIC MODE — for ANY section that depicts a NUMBER, DATE, PERCENTAGE, COMPARISON, OR CHART.
-   This is a HARD RULE. Don't write `intent` describing a "graphic of $X" — set `graphic_spec` instead.
-   `search_queries` may be empty.
+B) GENERATED-GRAPHIC MODE — OPTIONAL, for the occasional section that genuinely
+   lands better as a clean on-screen graphic. Use it sparingly.
+   `search_queries` may be empty when you set `graphic_spec`.
 
-## THE HARD RULE on graphic_spec (R14)
+## Guidance on graphic_spec (R14 — relaxed)
 
-If the narration in this section contains ANY of:
-  - A specific dollar amount ($3.2B, $81.6 billion, $200B)
-  - A percentage (+85%, 3%, 100%)
-  - A specific count (3,000 jobs, 500,000 chips)
-  - A specific date (June 17, May 2025, Q3)
-  - A comparison ("X vs Y", "X versus Y", "above forecasts of Z")
+Numbers spoken in the narration do NOT need an on-screen graphic. It is perfectly
+fine to just *say* a number over relevant B-roll — the spoken line + caption
+already carry it. Do NOT turn every dollar amount, percentage, or count into a
+card; a wall of number cards feels robotic.
 
-→ you MUST set `graphic_spec`. Do NOT use retrieval for these beats. Retrieved photos with random
-   numbers in them are the #1 quality killer in Shorts.
+Reserve `number_callout` for AT MOST ONE genuinely striking headline stat per
+video (typically the hook's punch number) — or none at all. For every other
+number, prefer RETRIEVAL imagery that fits the story.
+
+Still useful as graphics when they truly sharpen the point (optional):
+  - `date_card` for a single pivotal date.
+  - `bar_compare` / `mini_chart` for an explicit A-vs-B or a trend line.
+
+One caveat: avoid retrieved photos that contain large *conflicting* numbers in
+them — a stock chart screenshot with a different ticker is the #1 quality killer.
 
 Also: if the LAST beat is a CTA (role=cta), set `graphic_spec` = `{"kind": "follow_cta", "params": {"headline": "Follow for daily market moves"}}`.
 
@@ -165,7 +171,8 @@ Also: if the LAST beat is a CTA (role=cta), set `graphic_spec` = `{"kind": "foll
 3. Speaking order: sections must flow through the script in time.
 4. Sections tile the full duration with no gaps and no overlaps.
 5. Vary the visuals — don't show the same building/scene in two adjacent sections.
-6. Reasonable target: 40-60% of sections will be `graphic_spec` for a typical finance Short.
+6. Reasonable target: MOST sections are RETRIEVAL imagery. Use `graphic_spec`
+   sparingly — typically 0-2 per video (an optional hook stat and the CTA card).
 
 Return ONLY a JSON object matching the VisualPlan schema."""
 
@@ -264,7 +271,12 @@ def _inject_missing_graphics(plan: VisualPlan, script: Script) -> VisualPlan:
         beat_start, beat_end = timings[beat_idx]
         gs = _classify_beat(beat)
         if gs is None:
-            continue  # no number/date in this beat
+            continue  # no number/date/CTA cue in this beat
+        # Numbers and dates don't need to be forced on-screen — saying them is
+        # enough. Only the CTA end-card is auto-injected; the director itself
+        # chooses number_callout / charts when it genuinely wants them.
+        if gs["kind"] != "follow_cta":
+            continue
 
         # Does any existing section in this beat's window already have graphic_spec?
         covered = any(
@@ -358,21 +370,41 @@ def _classify_beat(beat: Beat) -> dict | None:
     return None
 
 
-def _short_subtitle(beat: Beat) -> str:
-    """Pick a short, contextual label from the narration (≤56 chars)."""
+def _short_subtitle(beat: Beat, *, max_words: int = 6, max_chars: int = 40) -> str:
+    """Pick a SHORT contextual label from the narration — a tag of a few words,
+    not the whole sentence.
+
+    The spoken caption pill already carries the full narration line, so a long
+    label here just duplicates it on screen. We keep only the first clause and
+    cap it to a handful of words at a word boundary (never a mid-word cut).
+    """
     text = beat.narration.strip()
     # Strip the number itself; replace with a space so adjacent words don't merge.
+    # The (?<![A-Za-z]) guard keeps letter+digit tokens like "Q1"/"H2" intact.
     cleaned = re.sub(r"[+\-]?\d+(\.\d+)?\s*%", " ", text)
-    cleaned = re.sub(r"\$?\s?\d[\d,.]*\s?(billion|million|trillion|B|M|T|K)?(\s*dollars)?", " ", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\$?\s?(?<![A-Za-z])\d[\d,.]*\s?(billion|million|trillion|B|M|T|K)?(\s*dollars)?", " ", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"\b\d{1,3}(,\d{3})+\b", " ", cleaned)
-    # Drop quantifier words left dangling once their number is gone.
-    cleaned = re.sub(r"\b(over|about|more than|nearly|roughly|around|almost|just)\b\s*(?=[,.;:]|$)", "", cleaned, flags=re.IGNORECASE)
-    cleaned = re.sub(r"\s+([,.;:])", r"\1", cleaned)   # drop space before punctuation
-    cleaned = re.sub(r",\s*,", ", ", cleaned)          # collapse emptied ", ,"
+    # Keep only the first clause — a label is a tag, not a sentence.
+    cleaned = re.split(r"\s*[—–]\s*|[,;:]\s+|\s+\b(?:and|but|because|so|while|which|that)\b\s+",
+                       cleaned, maxsplit=1)[0]
+    # Drop a quantifier word left stranded next to the removed number's gap.
+    cleaned = re.sub(r"\b(over|about|more than|nearly|roughly|around|almost|just|up to)\b\s{2,}", " ", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s{2,}\b(over|about|nearly|roughly|around|almost|just)\b", " ", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"\s+", " ", cleaned).strip(" —–-.,")
-    if len(cleaned) > 56:
-        cleaned = cleaned[:53].rstrip() + "…"
-    return cleaned or "key number"
+    words = cleaned.split()
+    if len(words) > max_words:
+        words = words[:max_words]
+    # Word-boundary cap on length — drop whole trailing words, no ellipsis.
+    while len(" ".join(words)) > max_chars and len(words) > 1:
+        words.pop()
+    # Trim leading/trailing filler so the tag ends on a content word.
+    _filler = {"a", "an", "the", "in", "on", "of", "to", "by", "for", "with",
+               "and", "at", "as", "over", "up", "is", "are", "was", "were"}
+    while words and words[-1].lower().strip(".,") in _filler:
+        words.pop()
+    while words and words[0].lower().strip(".,") in _filler:
+        words.pop(0)
+    return " ".join(words) or "key number"
 
 
 def _direction(beat: Beat) -> str:

@@ -54,12 +54,12 @@ def _trigger_publish(slug: str) -> None:
     )
 
 
-def _trigger_autopilot_tick() -> None:
-    job_mod.start(
-        PIPELINE, "autopilot-tick", "(render next planned item)",
-        [sys.executable, "-m", "shorts.cli", "stocks", "autopilot", "tick"],
-        cwd=str(REPO_ROOT),
-    )
+def _trigger_autopilot_tick(*, replan: bool = False) -> None:
+    cmd = [sys.executable, "-m", "shorts.cli", "stocks", "autopilot", "tick"]
+    if replan:
+        cmd.append("--replan")
+    label = "(replan + render one fresh clip)" if replan else "(render next planned item)"
+    job_mod.start(PIPELINE, "autopilot-tick", label, cmd, cwd=str(REPO_ROOT))
 
 
 def _trigger_regen(slug: str) -> None:
@@ -340,7 +340,9 @@ def autopilot_tick(request: Request, background_tasks: BackgroundTasks) -> dict:
     planned = [it for it in plan.items if it.status == "planned"]
     due = next_due_item(plan)
 
-    background_tasks.add_task(_trigger_autopilot_tick)
+    # Scheduled (cron) ticks replan first so each slot reflects the latest
+    # market, then render exactly one fresh clip (the daily target caps the day).
+    background_tasks.add_task(_trigger_autopilot_tick, replan=True)
 
     if due is None and not planned:
         return {"status": "enqueued", "action": "replan+render",

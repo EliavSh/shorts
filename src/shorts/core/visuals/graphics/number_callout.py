@@ -91,13 +91,23 @@ def render(*, brand: Brand, number: str, label: str,
 
 
 def _truncate_to_width(draw, text: str, font, max_width: int) -> str:
-    """Trim trailing characters (adding an ellipsis) until text fits max_width."""
+    """Trim trailing WORDS (adding an ellipsis) until text fits max_width.
+
+    Drops whole words rather than characters so a label never gets cut
+    mid-word (e.g. the ugly "...most people can'…").
+    """
     if draw.textlength(text, font=font) <= max_width:
         return text
     ell = "…"
+    words = text.split()
+    while words and draw.textlength(" ".join(words) + ell, font=font) > max_width:
+        words.pop()
+    if words:
+        return " ".join(words) + ell
+    # Single over-long token with no spaces — fall back to a char cut.
     s = text
     while s and draw.textlength(s + ell, font=font) > max_width:
-        s = s[:-1].rstrip()
+        s = s[:-1]
     return (s + ell) if s else ell
 
 

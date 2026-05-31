@@ -29,13 +29,13 @@ captions:
   max_chars_per_line: 30
 
 disclaimer:
-  text: "Educational content only. Not investment advice. Past performance does not guarantee future results."
-  font_size: 18
+  text: "Educational only. Not investment advice."
+  font_size: 30
   text_color: "#E5E7EB"
   background: "#000000"
   background_opacity: 0.7
   position_y_pct: 0.96
-  height: 80
+  height: 88
 
 cta:
   text: "Follow for daily market moves"
