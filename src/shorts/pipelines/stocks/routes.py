@@ -186,6 +186,62 @@ def plan_render_next(background_tasks: BackgroundTasks) -> RedirectResponse:
     return RedirectResponse(url="/stocks/plan?rendering=1", status_code=303)
 
 
+def _require_autopilot_token(request: Request) -> None:
+    """Guard the machine-to-machine tick endpoint with a shared secret.
+
+    If AUTOPILOT_TOKEN is set in the environment (a Fly secret in prod), the
+    caller must echo it via the X-Autopilot-Token header or a ?token= query
+    param. When unset (e.g. local dev) the endpoint stays open, matching the
+    rest of the dashboard.
+    """
+    expected = os.environ.get("AUTOPILOT_TOKEN", "").strip()
+    if not expected:
+        return
+    supplied = (request.headers.get("x-autopilot-token")
+                or request.query_params.get("token") or "").strip()
+    if supplied != expected:
+        raise HTTPException(401, "bad or missing autopilot token")
+
+
+@router.post("/autopilot/tick")
+def autopilot_tick(request: Request, background_tasks: BackgroundTasks) -> dict:
+    """Cloud cron entry point: enqueue a render of the next due planned item.
+
+    Called by the scheduled GitHub Action. The POST wakes the auto-stopped Fly
+    machine (auto_start_machines=true), so the render runs on the machine that
+    owns the data volume. Replanning, if the queue is empty, happens inside the
+    enqueued `autopilot tick` job. Returns JSON describing what will run.
+    """
+    _require_autopilot_token(request)
+
+    from .planner import store as plan_store
+    from .planner.orchestrate import next_due_item
+
+    plan = plan_store.load_plan()
+    planned = [it for it in plan.items if it.status == "planned"]
+    due = next_due_item(plan)
+
+    background_tasks.add_task(_trigger_autopilot_tick)
+
+    if due is None and not planned:
+        return {"status": "enqueued", "action": "replan+render",
+                "note": "plan empty — tick will regenerate then render"}
+    target = due
+    return {
+        "status": "enqueued",
+        "action": "render",
+        "planned_remaining": len(planned),
+        "next": None if target is None else {
+            "id": target.id,
+            "format": target.format,
+            "scheduled_for": target.scheduled_for.isoformat(),
+            "tickers": target.topic_seed.tickers,
+            "title_hint": target.title_hint,
+            "source": target.source,
+        },
+    }
+
+
 @router.post("/plan/{item_id}/{action}")
 def plan_item_action(item_id: str, action: str) -> RedirectResponse:
     """Per-item plan controls: skip | pin | bump (render sooner)."""

@@ -1,0 +1,51 @@
+name: Stocks auto-pilot tick
+
+# Wakes the Fly machine and asks the stocks planner to render the next due
+# video. The dashboard machine auto-stops when idle; this POST cold-starts it
+# (auto_start_machines=true in fly.toml), the render runs on the machine that
+# owns the data volume, then it idles back down.
+#
+# One-time setup (GitHub → Settings → Secrets and variables → Actions):
+#   AUTOPILOT_URL    e.g. https://shorts-review.fly.dev/stocks/autopilot/tick
+#   AUTOPILOT_TOKEN  same value you set as the Fly secret AUTOPILOT_TOKEN
+#                    (fly secrets set AUTOPILOT_TOKEN=...). If the Fly secret is
+#                    unset the endpoint is open and the token is ignored.
+#
+# Disable: comment out the `schedule:` block below (or disable this workflow in
+# the Actions tab). `workflow_dispatch` lets you fire one tick by hand.
+
+on:
+  schedule:
+    - cron: "0 13 * * *"   # daily 13:00 UTC
+  workflow_dispatch: {}
+
+concurrency:
+  group: stocks-autopilot
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST autopilot tick
+        env:
+          AUTOPILOT_URL: ${{ secrets.AUTOPILOT_URL }}
+          AUTOPILOT_TOKEN: ${{ secrets.AUTOPILOT_TOKEN }}
+        run: |
+          if [ -z "$AUTOPILOT_URL" ]; then
+            echo "AUTOPILOT_URL secret not set — nothing to do."
+            exit 1
+          fi
+          code=$(curl -sS -o /tmp/resp.json -w "%{http_code}" \
+            --retry 4 --retry-all-errors --retry-delay 10 --max-time 120 \
+            -X POST "$AUTOPILOT_URL" \
+            -H "X-Autopilot-Token: ${AUTOPILOT_TOKEN}")
+          echo "HTTP $code"
+          cat /tmp/resp.json || true
+          echo
+          # Cold-starting Fly may briefly 502/503 before the app is up; the
+          # curl --retry above handles that. Treat only a final 2xx as success.
+          case "$code" in
+            2*) echo "tick enqueued";;
+            *) echo "tick failed (HTTP $code)"; exit 1;;
+          esac
