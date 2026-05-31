@@ -94,6 +94,29 @@ def _composite_penalty(img: CachedImage) -> float:
     return pen
 
 
+def _text_heavy_penalty(img: CachedImage) -> float:
+    """Penalize images that are likely text-heavy explainers / infographics.
+
+    Photos of real scenes rarely have a large flat near-white background;
+    diagrams, price-tag explainers and infographics usually do (and CLIP scores
+    them deceptively high because they literally depict the subject). Cheap PIL
+    histogram on a downscaled grayscale copy — no OCR needed.
+    """
+    try:
+        with Image.open(img.path) as pi:
+            g = pi.convert("L").resize((128, 128))
+        hist = g.histogram()
+        total = sum(hist) or 1
+        near_white = sum(hist[238:]) / total
+    except Exception:
+        return 0.0
+    if near_white > 0.45:
+        return 0.12
+    if near_white > 0.32:
+        return 0.06
+    return 0.0
+
+
 def _retrieve_for_section(section: VisualSection) -> list[CachedImage]:
     """Hit all sources, download, quality-filter. Return survivors."""
     candidates = []
@@ -130,7 +153,7 @@ def _rank_by_relevance(intent: str, images: list[CachedImage]) -> list[tuple[Cac
         log.warning("open_clip not installed — using retrieval order as ranking")
         scores = [0.5 - i * 0.01 for i in range(len(images))]
     # R6 — subtract a small penalty for known composite-heavy sources.
-    scores = [s - _composite_penalty(ci) for ci, s in zip(images, scores, strict=False)]
+    scores = [s - _composite_penalty(ci) - _text_heavy_penalty(ci) for ci, s in zip(images, scores, strict=False)]
     return sorted(zip(images, scores, strict=False), key=lambda t: t[1], reverse=True)
 
 
@@ -159,7 +182,7 @@ def schedule_plan(plan: VisualPlan, script) -> list[VisualShot]:
     """
     from shorts.pipelines.stocks.visuals.brand import load_brand
     from ..settings import get_settings
-    from . import graphics
+    from shorts.core.visuals import graphics
 
     brand = load_brand(script.lang)
     s = get_settings()

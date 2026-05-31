@@ -29,7 +29,19 @@ def render_caption(
     style = brand.captions
     font = ImageFont.truetype(str(brand.font_path), size=style.font_size)
 
-    lines = _wrap_text(text, max_chars=style.max_chars_per_line, max_lines=style.max_lines)
+    # Hard pixel budget: the pill (text + horizontal padding) must never exceed
+    # the frame's 90% safe area. Wrapping is measured against the real font so
+    # no caption can render out of bounds, regardless of glyph widths or long
+    # words. max_chars stays as a soft secondary cap for line aesthetics.
+    fw = frame_size[0]
+    max_text_w = int(fw * 0.90) - 2 * style.pill_padding_x
+    lines = _wrap_text(
+        text,
+        max_chars=style.max_chars_per_line,
+        max_lines=style.max_lines,
+        font=font,
+        max_text_w=max_text_w,
+    )
     rendered_lines = [_to_display(line, brand.direction) for line in lines]
 
     # Measure
@@ -82,21 +94,81 @@ def _to_display(text: str, direction: str) -> str:
     return text
 
 
-def _wrap_text(text: str, *, max_chars: int, max_lines: int) -> list[str]:
-    """Greedy whitespace-aware wrap, max_lines clamp.
+def _measure_w(text: str, font: "ImageFont.FreeTypeFont | None") -> int:
+    """Pixel width of `text` in `font`. Returns 0 when no font (chars-only mode)."""
+    if font is None or not text:
+        return 0
+    bbox = ImageDraw.Draw(_MEASURE_IMG).textbbox((0, 0), text, font=font)
+    return bbox[2] - bbox[0]
 
-    Works the same way for Hebrew (word-spacing is identical to English at the
-    string-processing level — BiDi reordering happens later at render time).
+
+_MEASURE_IMG = Image.new("RGBA", (1, 1))
+
+
+def _fits(line: str, *, max_chars: int, font: "ImageFont.FreeTypeFont | None",
+          max_text_w: int) -> bool:
+    """A line fits if it's within the char cap AND (when a font is given) the
+    measured pixel width is within the frame's safe area."""
+    if len(line) > max_chars:
+        return False
+    if font is not None and max_text_w > 0 and _measure_w(line, font) > max_text_w:
+        return False
+    return True
+
+
+def _hard_break_word(word: str, *, max_chars: int, font: "ImageFont.FreeTypeFont | None",
+                     max_text_w: int) -> list[str]:
+    """Split a single word too wide for one line into pixel-fitting pieces.
+
+    Only triggers for pathological inputs (e.g. a 40-char URL-like token); normal
+    finance narration never hits this, but it guarantees in-bounds rendering.
     """
-    words = text.split()
-    if not words:
+    pieces: list[str] = []
+    cur = ""
+    for ch in word:
+        candidate = cur + ch
+        if cur and not _fits(candidate, max_chars=max_chars, font=font, max_text_w=max_text_w):
+            pieces.append(cur)
+            cur = ch
+        else:
+            cur = candidate
+    if cur:
+        pieces.append(cur)
+    return pieces
+
+
+def _wrap_text(
+    text: str,
+    *,
+    max_chars: int,
+    max_lines: int,
+    font: "ImageFont.FreeTypeFont | None" = None,
+    max_text_w: int = 0,
+) -> list[str]:
+    """Greedy whitespace-aware wrap with a hard pixel budget.
+
+    A line is accepted only if it fits both the char cap and (when `font` +
+    `max_text_w` are supplied) the measured pixel width. Overlong single words
+    are hard-broken so a pill can never exceed the frame. Works identically for
+    Hebrew — BiDi reordering happens later at render time and doesn't change width.
+    """
+    raw_words = text.split()
+    if not raw_words:
         return [""]
+
+    # Pre-split any word that can't fit on its own line.
+    words: list[str] = []
+    for w in raw_words:
+        if _fits(w, max_chars=max_chars, font=font, max_text_w=max_text_w):
+            words.append(w)
+        else:
+            words.extend(_hard_break_word(w, max_chars=max_chars, font=font, max_text_w=max_text_w))
 
     lines: list[str] = []
     current = ""
     for w in words:
         candidate = f"{current} {w}".strip()
-        if len(candidate) <= max_chars or not current:
+        if not current or _fits(candidate, max_chars=max_chars, font=font, max_text_w=max_text_w):
             current = candidate
         else:
             lines.append(current)
@@ -106,13 +178,15 @@ def _wrap_text(text: str, *, max_chars: int, max_lines: int) -> list[str]:
     if current and len(lines) < max_lines:
         lines.append(current)
 
-    # If we hit max_lines and still had words, append ellipsis to last line.
+    # If we hit max_lines and still had content, append an ellipsis that itself
+    # stays within budget (trim characters until it fits).
     if len(lines) == max_lines:
         consumed = sum(len(line.split()) for line in lines)
         if consumed < len(words):
             last = lines[-1]
-            if len(last) + 2 <= max_chars:
-                lines[-1] = last + "…"
-            else:
-                lines[-1] = last[: max_chars - 1] + "…"
+            trial = last + "…"
+            while not _fits(trial, max_chars=max_chars, font=font, max_text_w=max_text_w) and last:
+                last = last[:-1].rstrip()
+                trial = last + "…"
+            lines[-1] = trial
     return lines[:max_lines]

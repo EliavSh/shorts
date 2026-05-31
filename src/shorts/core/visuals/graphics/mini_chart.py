@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw, ImageFont
 
 from ..brand import Brand
+from ._textfit import fit_font
 
 FRAME_W = 1080
 FRAME_H = 1920
@@ -33,7 +34,7 @@ def render(*, brand: Brand, title: str,
     img = Image.new("RGB", (FRAME_W, FRAME_H), (10, 22, 46))
     draw = ImageDraw.Draw(img, "RGBA")
 
-    f_title = ImageFont.truetype(str(brand.font_path), size=58)
+    f_title = fit_font(brand.font_path, title, max_width=FRAME_W - 100, start=58, min_size=32)
     f_anno = ImageFont.truetype(str(brand.font_path), size=44)
     f_anno_small = ImageFont.truetype(str(brand.font_path_regular), size=34)
 

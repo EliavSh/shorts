@@ -9,6 +9,7 @@ from bidi.algorithm import get_display
 from PIL import Image, ImageDraw, ImageFont
 
 from ..brand import Brand, hex_to_rgba
+from ._textfit import fit_font
 
 FRAME_W = 1080
 FRAME_H = 1920
@@ -42,7 +43,9 @@ def render(*, brand: Brand, number: str, label: str,
     # Auto-scale the number font so it fits comfortably in the frame width.
     base_size = _fit_size(brand.font_path, number, max_width=FRAME_W - 200, start=420)
     f_number = ImageFont.truetype(str(brand.font_path), size=base_size)
-    f_label = ImageFont.truetype(str(brand.font_path), size=72)
+    # Label can be up to ~56 chars (director-generated) — shrink to stay in-frame.
+    label_disp_pre = get_display(label) if brand.direction == "rtl" else label
+    f_label = fit_font(brand.font_path, label_disp_pre, max_width=FRAME_W - 120, start=72, min_size=34)
     f_context = ImageFont.truetype(str(brand.font_path_regular), size=44)
 
     # Vertical stack centered

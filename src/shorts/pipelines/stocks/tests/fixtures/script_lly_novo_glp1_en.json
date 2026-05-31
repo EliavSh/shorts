@@ -1,0 +1,19 @@
+{
+  "lang": "en",
+  "format": "two_story_pivot",
+  "title": "Two weight-loss drugs are now worth hundreds of billions",
+  "description_hashtags": ["#LLY", "#EliLilly", "#NovoNordisk", "#NVO", "#GLP1", "#Ozempic", "#Stocks", "#Healthcare"],
+  "tickers": [
+    { "ticker": "LLY", "name": "Eli Lilly", "change_pct": 2.0, "price": 850.0, "ohlc_30d": [] },
+    { "ticker": "NVO", "name": "Novo Nordisk", "change_pct": -1.0, "price": 75.0, "ohlc_30d": [] }
+  ],
+  "beats": [
+    { "narration": "A handful of weight-loss drugs just turned two drugmakers into some of the biggest companies on Earth.", "caption": null, "visual_tags": ["pharma", "injection pen"], "role": "hook", "ticker_focus": "LLY", "hook_pattern": "concrete_surprise" },
+    { "narration": "Eli Lilly's Zepbound and Mounjaro made it one of the most valuable companies in the world.", "caption": null, "visual_tags": ["eli lilly", "zepbound"], "role": "body", "ticker_focus": "LLY", "hook_pattern": null },
+    { "narration": "But Lilly didn't start this race.", "caption": null, "visual_tags": ["race", "competition"], "role": "pivot", "ticker_focus": null, "hook_pattern": null },
+    { "narration": "Novo Nordisk did, with Ozempic and Wegovy — the shots that turned weight loss into a blockbuster.", "caption": null, "visual_tags": ["novo nordisk", "ozempic"], "role": "body", "ticker_focus": "NVO", "hook_pattern": null },
+    { "narration": "For a while, Novo was the most valuable company in all of Europe.", "caption": null, "visual_tags": ["europe", "denmark"], "role": "body", "ticker_focus": "NVO", "hook_pattern": null },
+    { "narration": "Now Lilly's newer drug works even better in trials, and the lead is shifting fast.", "caption": null, "visual_tags": ["clinical trial", "results"], "role": "body", "ticker_focus": "LLY", "hook_pattern": null },
+    { "narration": "A two-company race worth hundreds of billions. Follow for more.", "caption": null, "visual_tags": ["follow"], "role": "cta", "ticker_focus": "LLY", "hook_pattern": null }
+  ]
+}

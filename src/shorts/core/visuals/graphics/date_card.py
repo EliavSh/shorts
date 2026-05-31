@@ -12,6 +12,7 @@ from bidi.algorithm import get_display
 from PIL import Image, ImageDraw, ImageFont
 
 from ..brand import Brand, hex_to_rgba
+from ._textfit import fit_font
 
 FRAME_W = 1080
 FRAME_H = 1920
@@ -101,6 +102,8 @@ def render(*, brand: Brand, year: int, month: int, day: int,
     # ── Optional subtitle
     if subtitle:
         subtitle_disp = get_display(subtitle) if brand.direction == "rtl" else subtitle
+        f_subtitle = fit_font(brand.font_path_regular, subtitle_disp,
+                              max_width=FRAME_W - 120, start=44, min_size=28)
         bbox = draw.textbbox((0, 0), subtitle_disp, font=f_subtitle)
         sub_y = grid_top + len(cal) * cell_h + 80
         draw.text(((FRAME_W - (bbox[2] - bbox[0])) // 2, sub_y),

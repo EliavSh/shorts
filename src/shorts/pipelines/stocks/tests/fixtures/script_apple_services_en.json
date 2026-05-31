@@ -1,0 +1,17 @@
+{
+  "lang": "en",
+  "format": "deep_dive_one_stock",
+  "title": "Apple sells fewer iPhones — and makes more money than ever",
+  "description_hashtags": ["#AAPL", "#Apple", "#iPhone", "#Services", "#Stocks", "#AppStore", "#Tech", "#StockMarket"],
+  "tickers": [
+    { "ticker": "AAPL", "name": "Apple", "change_pct": 1.5, "price": 210.0, "ohlc_30d": [] }
+  ],
+  "beats": [
+    { "narration": "Apple is selling fewer iPhones than its peak — and making more money than ever.", "caption": null, "visual_tags": ["apple", "iphone"], "role": "hook", "ticker_focus": "AAPL", "hook_pattern": "concrete_surprise" },
+    { "narration": "The reason isn't hardware. It's the App Store, iCloud, Apple Music, and Apple TV.", "caption": null, "visual_tags": ["app store", "subscription"], "role": "body", "ticker_focus": "AAPL", "hook_pattern": null },
+    { "narration": "Services now bring in over 26 billion dollars a quarter, at far higher margins than any device.", "caption": null, "visual_tags": ["services", "revenue"], "role": "body", "ticker_focus": "AAPL", "hook_pattern": null },
+    { "narration": "Those subscriptions keep paying every single month, long after you buy the phone.", "caption": null, "visual_tags": ["recurring", "monthly"], "role": "body", "ticker_focus": "AAPL", "hook_pattern": null },
+    { "narration": "That's why Apple keeps shifting its story from gadgets to recurring revenue.", "caption": null, "visual_tags": ["strategy", "growth"], "role": "body", "ticker_focus": "AAPL", "hook_pattern": null },
+    { "narration": "The iPhone got Apple into your pocket. Services keep it there. Follow for more.", "caption": null, "visual_tags": ["follow"], "role": "cta", "ticker_focus": "AAPL", "hook_pattern": null }
+  ]
+}

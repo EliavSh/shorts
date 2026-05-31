@@ -1,0 +1,17 @@
+{
+  "lang": "en",
+  "format": "deep_dive_one_stock",
+  "title": "On June 17, the Fed makes a decision that moves every market",
+  "description_hashtags": ["#Fed", "#InterestRates", "#JPM", "#Banks", "#Stocks", "#Economy", "#FOMC", "#StockMarket"],
+  "tickers": [
+    { "ticker": "JPM", "name": "JPMorgan", "change_pct": 1.0, "price": 270.0, "ohlc_30d": [] }
+  ],
+  "beats": [
+    { "narration": "On June 17, the Federal Reserve makes a decision that moves every market on the planet.", "caption": null, "visual_tags": ["federal reserve", "building"], "role": "hook", "ticker_focus": "JPM", "hook_pattern": "time_pressure" },
+    { "narration": "At stake: whether to finally cut interest rates after holding them high for months.", "caption": null, "visual_tags": ["interest rates", "decision"], "role": "body", "ticker_focus": "JPM", "hook_pattern": null },
+    { "narration": "Lower rates make borrowing cheaper — good for stocks, housing, and especially banks.", "caption": null, "visual_tags": ["borrowing", "housing"], "role": "body", "ticker_focus": "JPM", "hook_pattern": null },
+    { "narration": "Banks like JPMorgan tend to earn more when lending picks back up.", "caption": null, "visual_tags": ["jpmorgan", "lending"], "role": "body", "ticker_focus": "JPM", "hook_pattern": null },
+    { "narration": "But if the Fed waits, markets that already priced in a cut could pull back fast.", "caption": null, "visual_tags": ["market", "volatility"], "role": "body", "ticker_focus": "JPM", "hook_pattern": null },
+    { "narration": "One meeting, trillions of dollars on the line. Follow for more.", "caption": null, "visual_tags": ["follow"], "role": "cta", "ticker_focus": "JPM", "hook_pattern": null }
+  ]
+}

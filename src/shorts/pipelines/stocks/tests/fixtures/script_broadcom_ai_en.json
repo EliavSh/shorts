@@ -1,0 +1,17 @@
+{
+  "lang": "en",
+  "format": "deep_dive_one_stock",
+  "title": "While everyone watched Nvidia, this chip company passed a trillion",
+  "description_hashtags": ["#AVGO", "#Broadcom", "#AI", "#Semiconductors", "#Stocks", "#DataCenter", "#Tech", "#StockMarket"],
+  "tickers": [
+    { "ticker": "AVGO", "name": "Broadcom", "change_pct": 3.0, "price": 240.0, "ohlc_30d": [] }
+  ],
+  "beats": [
+    { "narration": "While everyone watched Nvidia, another chip company quietly crossed a trillion dollars.", "caption": null, "visual_tags": ["broadcom", "chip"], "role": "hook", "ticker_focus": "AVGO", "hook_pattern": "concrete_surprise" },
+    { "narration": "Broadcom makes the custom chips and networking gear that tie AI data centers together.", "caption": null, "visual_tags": ["networking", "datacenter"], "role": "body", "ticker_focus": "AVGO", "hook_pattern": null },
+    { "narration": "When a tech giant wants its own AI chip instead of Nvidia's, it often calls Broadcom.", "caption": null, "visual_tags": ["custom chip", "design"], "role": "body", "ticker_focus": "AVGO", "hook_pattern": null },
+    { "narration": "Its AI revenue has been roughly doubling year over year.", "caption": null, "visual_tags": ["revenue growth", "ai"], "role": "body", "ticker_focus": "AVGO", "hook_pattern": null },
+    { "narration": "Add a software arm from its VMware deal, and you get steady cash on top of the AI boom.", "caption": null, "visual_tags": ["software", "vmware"], "role": "body", "ticker_focus": "AVGO", "hook_pattern": null },
+    { "narration": "Not every AI winner carries Nvidia's name. Follow for more.", "caption": null, "visual_tags": ["follow"], "role": "cta", "ticker_focus": "AVGO", "hook_pattern": null }
+  ]
+}

@@ -24,6 +24,10 @@ from ..settings import get_settings
 # R14 — patterns that DEMAND a generated graphic.
 _NUMBER_PATTERNS = [
     re.compile(r"\$\s?\d[\d,.]*\s?(billion|million|trillion|B|M|T|K)\b", re.IGNORECASE),
+    # Bare magnitude numbers without a $ sign: "200 million dollars", "over 300
+    # million members", "26 billion a quarter". These are real, callout-worthy
+    # numbers that the $-anchored pattern above misses.
+    re.compile(r"\b\d[\d,.]*\s?(billion|million|trillion)\b", re.IGNORECASE),
     re.compile(r"[+\-]?\d+(\.\d+)?\s*%"),
     re.compile(r"\b\d{1,3}(,\d{3})+\b"),  # numbers with thousands separators (3,000)
     re.compile(r"\b\d+,\d+\s*(jobs|chips|employees|users|customers|people)\b", re.IGNORECASE),
@@ -342,13 +346,17 @@ def _classify_beat(beat: Beat) -> dict | None:
 def _short_subtitle(beat: Beat) -> str:
     """Pick a short, contextual label from the narration (≤56 chars)."""
     text = beat.narration.strip()
-    # Strip the number itself if present; keep surrounding context.
-    cleaned = re.sub(r"\$\s?\d[\d,.]*\s?(billion|million|trillion|B|M|T|K)?", "", text, flags=re.IGNORECASE)
-    cleaned = re.sub(r"[+\-]?\d+(\.\d+)?\s*%", "", cleaned)
-    cleaned = re.sub(r"\b\d{1,3}(,\d{3})+\b", "", cleaned)
+    # Strip the number itself; replace with a space so adjacent words don't merge.
+    cleaned = re.sub(r"[+\-]?\d+(\.\d+)?\s*%", " ", text)
+    cleaned = re.sub(r"\$?\s?\d[\d,.]*\s?(billion|million|trillion|B|M|T|K)?(\s*dollars)?", " ", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\b\d{1,3}(,\d{3})+\b", " ", cleaned)
+    # Drop quantifier words left dangling once their number is gone.
+    cleaned = re.sub(r"\b(over|about|more than|nearly|roughly|around|almost|just)\b\s*(?=[,.;:]|$)", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s+([,.;:])", r"\1", cleaned)   # drop space before punctuation
+    cleaned = re.sub(r",\s*,", ", ", cleaned)          # collapse emptied ", ,"
     cleaned = re.sub(r"\s+", " ", cleaned).strip(" —–-.,")
     if len(cleaned) > 56:
-        cleaned = cleaned[:53] + "…"
+        cleaned = cleaned[:53].rstrip() + "…"
     return cleaned or "key number"
 
 

@@ -1,0 +1,17 @@
+{
+  "lang": "en",
+  "format": "deep_dive_one_stock",
+  "title": "Tesla's fastest-growing business isn't cars",
+  "description_hashtags": ["#TSLA", "#Tesla", "#Energy", "#Batteries", "#Stocks", "#Megapack", "#AI", "#StockMarket"],
+  "tickers": [
+    { "ticker": "TSLA", "name": "Tesla", "change_pct": 2.0, "price": 350.0, "ohlc_30d": [] }
+  ],
+  "beats": [
+    { "narration": "Everyone calls Tesla a car company. But its fastest-growing business isn't cars at all.", "caption": null, "visual_tags": ["tesla", "car"], "role": "hook", "ticker_focus": "TSLA", "hook_pattern": "concrete_surprise" },
+    { "narration": "It's energy — giant batteries that store power for homes and entire electric grids.", "caption": null, "visual_tags": ["battery", "power grid"], "role": "body", "ticker_focus": "TSLA", "hook_pattern": null },
+    { "narration": "That division has been growing faster than the car business for several quarters straight.", "caption": null, "visual_tags": ["growth", "megapack"], "role": "body", "ticker_focus": "TSLA", "hook_pattern": null },
+    { "narration": "And as AI data centers devour electricity, demand for grid-scale storage is exploding.", "caption": null, "visual_tags": ["data center", "electricity"], "role": "body", "ticker_focus": "TSLA", "hook_pattern": null },
+    { "narration": "Higher-margin energy and software could reshape how the entire company is valued.", "caption": null, "visual_tags": ["margins", "valuation"], "role": "body", "ticker_focus": "TSLA", "hook_pattern": null },
+    { "narration": "The car company that quietly became an energy company. Follow for more.", "caption": null, "visual_tags": ["follow"], "role": "cta", "ticker_focus": "TSLA", "hook_pattern": null }
+  ]
+}

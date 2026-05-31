@@ -1,0 +1,17 @@
+{
+  "lang": "en",
+  "format": "deep_dive_one_stock",
+  "title": "Costco barely profits on groceries — and that's the whole plan",
+  "description_hashtags": ["#COST", "#Costco", "#Retail", "#Business", "#Stocks", "#Membership", "#Investing", "#StockMarket"],
+  "tickers": [
+    { "ticker": "COST", "name": "Costco", "change_pct": 1.0, "price": 1000.0, "ohlc_30d": [] }
+  ],
+  "beats": [
+    { "narration": "Costco barely makes a profit selling you groceries — and that is completely on purpose.", "caption": null, "visual_tags": ["costco", "warehouse"], "role": "hook", "ticker_focus": "COST", "hook_pattern": "concrete_surprise" },
+    { "narration": "It marks up most products just enough to cover its costs, sometimes almost nothing at all.", "caption": null, "visual_tags": ["price tag", "groceries"], "role": "body", "ticker_focus": "COST", "hook_pattern": null },
+    { "narration": "The real money comes from the membership fee you pay just to walk in the door.", "caption": null, "visual_tags": ["membership card", "entrance"], "role": "body", "ticker_focus": "COST", "hook_pattern": null },
+    { "narration": "Over 75 million households pay about 65 dollars a year, and more than 90% renew.", "caption": null, "visual_tags": ["members", "renewal"], "role": "body", "ticker_focus": "COST", "hook_pattern": null },
+    { "narration": "That fee is almost pure profit, and it funds the low prices that keep you coming back.", "caption": null, "visual_tags": ["profit", "loyalty"], "role": "body", "ticker_focus": "COST", "hook_pattern": null },
+    { "narration": "You're not really the customer — the membership is the product. Follow for more.", "caption": null, "visual_tags": ["follow"], "role": "cta", "ticker_focus": "COST", "hook_pattern": null }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "lang": "en",
+  "format": "deep_dive_one_stock",
+  "title": "Nvidia beat earnings again — and the stock dropped",
+  "description_hashtags": ["#NVDA", "#Nvidia", "#AI", "#Earnings", "#Stocks", "#Blackwell", "#Semiconductors", "#StockMarket"],
+  "tickers": [
+    { "ticker": "NVDA", "name": "Nvidia", "change_pct": -4.0, "price": 135.0, "ohlc_30d": [] }
+  ],
+  "beats": [
+    { "narration": "Nvidia beat earnings again — and the stock dropped anyway.", "caption": null, "visual_tags": ["nvidia", "chip", "red"], "role": "hook", "ticker_focus": "NVDA", "hook_pattern": "concrete_surprise" },
+    { "narration": "Revenue hit 44 billion dollars, up 69% from a year ago, almost all of it from AI data centers.", "caption": null, "visual_tags": ["datacenter", "revenue"], "role": "body", "ticker_focus": "NVDA", "hook_pattern": null },
+    { "narration": "Next quarter's guidance landed near 45 billion dollars, just ahead of what analysts expected.", "caption": null, "visual_tags": ["guidance", "wallstreet"], "role": "body", "ticker_focus": "NVDA", "hook_pattern": null },
+    { "narration": "The problem wasn't the numbers. It was expectations — perfection was already priced in.", "caption": null, "visual_tags": ["expectations", "market"], "role": "body", "ticker_focus": "NVDA", "hook_pattern": null },
+    { "narration": "Every major AI lab still trains on Nvidia chips, from OpenAI to Anthropic to Google.", "caption": null, "visual_tags": ["openai", "ai"], "role": "body", "ticker_focus": "NVDA", "hook_pattern": null },
+    { "narration": "And CEO Jensen Huang said demand for the new Blackwell systems is, in his word, insane.", "caption": null, "visual_tags": ["jensen huang", "blackwell"], "role": "body", "ticker_focus": "NVDA", "hook_pattern": null },
+    { "narration": "When a record quarter still isn't enough, you can see how high the bar has climbed. Follow for more.", "caption": null, "visual_tags": ["follow"], "role": "cta", "ticker_focus": "NVDA", "hook_pattern": null }
+  ]
+}

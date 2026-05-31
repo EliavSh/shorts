@@ -1,0 +1,17 @@
+{
+  "lang": "en",
+  "format": "deep_dive_one_stock",
+  "title": "This stock tripled in a year — and most people can't say what it does",
+  "description_hashtags": ["#PLTR", "#Palantir", "#AI", "#Stocks", "#Valuation", "#DataAnalytics", "#Tech", "#StockMarket"],
+  "tickers": [
+    { "ticker": "PLTR", "name": "Palantir", "change_pct": 5.0, "price": 140.0, "ohlc_30d": [] }
+  ],
+  "beats": [
+    { "narration": "One stock is up over 300% in a year — and most people can't say what it actually does.", "caption": null, "visual_tags": ["palantir", "stock chart"], "role": "hook", "ticker_focus": "PLTR", "hook_pattern": "numeric_punch" },
+    { "narration": "Palantir builds the software governments and giant companies use to make sense of their data.", "caption": null, "visual_tags": ["software", "data"], "role": "body", "ticker_focus": "PLTR", "hook_pattern": null },
+    { "narration": "Its new AI platform is selling so fast the company can barely hire quickly enough to keep up.", "caption": null, "visual_tags": ["ai platform", "demand"], "role": "body", "ticker_focus": "PLTR", "hook_pattern": null },
+    { "narration": "Revenue is growing around 40% a year, and the business is now solidly profitable.", "caption": null, "visual_tags": ["revenue growth", "profit"], "role": "body", "ticker_focus": "PLTR", "hook_pattern": null },
+    { "narration": "But here's the catch: it trades at over 200 times earnings — priced for years of perfection.", "caption": null, "visual_tags": ["valuation", "expensive"], "role": "body", "ticker_focus": "PLTR", "hook_pattern": null },
+    { "narration": "Incredible business, terrifying price tag. Follow for more market breakdowns.", "caption": null, "visual_tags": ["follow"], "role": "cta", "ticker_focus": "PLTR", "hook_pattern": null }
+  ]
+}

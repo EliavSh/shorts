@@ -7,6 +7,7 @@ from __future__ import annotations
 from PIL import Image, ImageDraw, ImageFont
 
 from ..brand import Brand
+from ._textfit import fit_font
 
 FRAME_W = 1080
 FRAME_H = 1920
@@ -27,7 +28,7 @@ def render(*, brand: Brand, title: str,
     img = Image.new("RGB", (FRAME_W, FRAME_H), (12, 24, 48))
     draw = ImageDraw.Draw(img, "RGBA")
 
-    f_title = ImageFont.truetype(str(brand.font_path), size=64)
+    f_title = fit_font(brand.font_path, title, max_width=FRAME_W - 120, start=64, min_size=34)
     f_value = ImageFont.truetype(str(brand.font_path), size=84)
     f_label = ImageFont.truetype(str(brand.font_path_regular), size=42)
 

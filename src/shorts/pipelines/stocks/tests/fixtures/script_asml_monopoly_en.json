@@ -1,0 +1,18 @@
+{
+  "lang": "en",
+  "format": "deep_dive_one_stock",
+  "title": "A 200 million dollar machine only one company can build",
+  "description_hashtags": ["#ASML", "#Semiconductors", "#Chips", "#EUV", "#Stocks", "#Tech", "#AI", "#StockMarket"],
+  "tickers": [
+    { "ticker": "ASML", "name": "ASML", "change_pct": 2.5, "price": 900.0, "ohlc_30d": [] }
+  ],
+  "beats": [
+    { "narration": "There's a machine that costs 200 million dollars, and only one company on Earth can build it.", "caption": null, "visual_tags": ["machine", "factory"], "role": "hook", "ticker_focus": "ASML", "hook_pattern": "numeric_punch" },
+    { "narration": "It's made by ASML, a Dutch company most people have never heard of.", "caption": null, "visual_tags": ["asml", "netherlands"], "role": "body", "ticker_focus": "ASML", "hook_pattern": null },
+    { "narration": "The machine uses light to print circuits just nanometers wide onto silicon wafers.", "caption": null, "visual_tags": ["lithography", "wafer"], "role": "body", "ticker_focus": "ASML", "hook_pattern": null },
+    { "narration": "Without it, there are no advanced chips. No Nvidia, no Apple, no modern AI.", "caption": null, "visual_tags": ["chip", "ai"], "role": "body", "ticker_focus": "ASML", "hook_pattern": null },
+    { "narration": "That's why ASML holds a near-total monopoly on the most important tool in tech.", "caption": null, "visual_tags": ["monopoly", "technology"], "role": "body", "ticker_focus": "ASML", "hook_pattern": null },
+    { "narration": "Its newest model costs closer to 400 million dollars, and chipmakers are lining up to buy it.", "caption": null, "visual_tags": ["high-na", "order"], "role": "body", "ticker_focus": "ASML", "hook_pattern": null },
+    { "narration": "The most powerful company you've never heard of. Follow for more.", "caption": null, "visual_tags": ["follow"], "role": "cta", "ticker_focus": "ASML", "hook_pattern": null }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "lang": "en",
+  "format": "two_story_pivot",
+  "title": "Nvidia designs the chips — but one company in Taiwan builds them",
+  "description_hashtags": ["#TSMC", "#NVDA", "#Nvidia", "#Semiconductors", "#AI", "#Chips", "#Taiwan", "#Stocks"],
+  "tickers": [
+    { "ticker": "NVDA", "name": "Nvidia", "change_pct": 2.0, "price": 135.0, "ohlc_30d": [] },
+    { "ticker": "TSM", "name": "TSMC", "change_pct": 3.0, "price": 190.0, "ohlc_30d": [] }
+  ],
+  "beats": [
+    { "narration": "Nvidia designs the most valuable chips on Earth — but it doesn't manufacture a single one.", "caption": null, "visual_tags": ["nvidia", "chip design"], "role": "hook", "ticker_focus": "NVDA", "hook_pattern": "counterintuitive_question" },
+    { "narration": "Its Blackwell processors are just blueprints until someone etches them into real silicon.", "caption": null, "visual_tags": ["blueprint", "silicon"], "role": "body", "ticker_focus": "NVDA", "hook_pattern": null },
+    { "narration": "And that someone is one company, in Taiwan.", "caption": null, "visual_tags": ["taiwan", "factory"], "role": "pivot", "ticker_focus": null, "hook_pattern": null },
+    { "narration": "TSMC builds nearly every advanced AI chip in the world — for Nvidia, Apple, and AMD alike.", "caption": null, "visual_tags": ["tsmc", "fab"], "role": "body", "ticker_focus": "TSM", "hook_pattern": null },
+    { "narration": "So when Nvidia's orders jump, TSMC's revenue climbs right behind it.", "caption": null, "visual_tags": ["orders", "revenue"], "role": "body", "ticker_focus": "TSM", "hook_pattern": null },
+    { "narration": "Its monthly sales recently rose more than 40% from a year earlier, driven by AI demand.", "caption": null, "visual_tags": ["growth", "ai demand"], "role": "body", "ticker_focus": "TSM", "hook_pattern": null },
+    { "narration": "One company designs the future, another builds it. Follow for more market connections.", "caption": null, "visual_tags": ["follow"], "role": "cta", "ticker_focus": "TSM", "hook_pattern": null }
+  ]
+}
