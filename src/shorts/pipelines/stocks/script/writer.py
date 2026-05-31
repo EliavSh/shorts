@@ -15,9 +15,11 @@ from .schemas import Script, TopicContext
 log = logging.getLogger(__name__)
 
 
+_PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
+
+
 def _load_system_prompt(lang: str) -> str:
-    s = get_settings()
-    p = s.project_root / "src" / "stocksreels" / "script" / "prompts" / f"system_{lang}.md"
+    p = _PROMPTS_DIR / f"system_{lang}.md"
     template = p.read_text(encoding="utf-8")
     menu = formats.render_format_menu_markdown()
     return template.replace("{format_menu}", menu)
