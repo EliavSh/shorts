@@ -25,13 +25,19 @@ COPY pyproject.toml README.md ./
 COPY src/ src/
 COPY config/ config/
 COPY assets/ assets/
+COPY deploy/ deploy/
 
 RUN pip install --no-cache-dir -e .
 
 EXPOSE 8000
 
+# Bump to force re-seeding the volume with refreshed review clips on next boot.
+ENV SEED_VERSION=1
+
 # Persistent data lives on a Fly volume mounted at /app/data
 VOLUME ["/app/data"]
 
-# uvicorn on the unified dashboard. The whole app serves both pipelines.
+# Seed the volume with bundled review clips on first boot, then run uvicorn on
+# the unified dashboard (entrypoint execs the CMD after seeding).
+ENTRYPOINT ["sh", "/app/deploy/entrypoint.sh"]
 CMD ["uvicorn", "shorts.core.dashboard.factory:app", "--host", "0.0.0.0", "--port", "8000"]
