@@ -12,7 +12,7 @@ import yaml
 
 from ..script.schemas import CausalLink, TickerSnapshot, TopicContext
 from ..settings import get_settings
-from .market import TickerQuote, top_movers
+from .market import TickerQuote, get_quote, top_movers
 from .news import get_news_for_ticker
 
 log = logging.getLogger(__name__)
@@ -58,6 +58,48 @@ def _suggest_links(candidates: list[TickerSnapshot]) -> list[CausalLink]:
             if dst in by_ticker:
                 links.append(CausalLink(from_ticker=src, to_ticker=dst, reason=e["reason"]))
     return links
+
+
+def build_context_for(
+    tickers: list[str], *, lang: str = "en",
+    theme: str | None = None, macro_notes: str | None = None,
+) -> TopicContext | None:
+    """Build a TopicContext for an explicit set of tickers (planner-seeded).
+
+    Unlike `pick_topic` (which scans for the day's movers), this enriches a
+    caller-chosen list — used by the planner to render a specific format about
+    specific companies. Returns None only if not a single ticker resolves.
+    The `theme` (e.g. a sector arc) and `macro_notes` are folded into
+    macro_notes so the writer keeps them in mind.
+    """
+    snaps: list[TickerSnapshot] = []
+    for sym in tickers:
+        q = get_quote(sym)
+        if q is None:
+            log.warning("build_context_for: could not quote %s — skipping", sym)
+            continue
+        snaps.append(_quote_to_snapshot(q, get_news_for_ticker(q.ticker)))
+
+    if not snaps and tickers:
+        # Ticker-less formats (fun_fact, myth) still want a context; only bail
+        # when the caller wanted tickers and none resolved.
+        log.warning("build_context_for: no tickers resolved from %s", tickers)
+        return None
+
+    notes_parts = [p for p in (theme, macro_notes) if p]
+    notes = " ".join(notes_parts) if notes_parts else None
+
+    # A single-element candidate list would violate the schema's min_length=1
+    # only when empty; ticker-less formats need a placeholder candidate. We keep
+    # at least the resolved snaps, else synthesize a thin placeholder.
+    candidates = snaps or [TickerSnapshot(ticker="MKT", name="Market", change_pct=0.0)]
+
+    return TopicContext(
+        lang=lang,  # type: ignore[arg-type]
+        candidates=candidates,
+        suggested_links=_suggest_links(snaps),
+        macro_notes=notes,
+    )
 
 
 def pick_topic(*, lang: str = "he", limit_universe: int = 8) -> TopicContext | None:

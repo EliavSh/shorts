@@ -29,7 +29,7 @@ from .db import Render as RenderRow
 from .db import Script as ScriptRow
 from .db import Topic as TopicRow
 from .db import get_engine
-from .data.topic_picker import pick_topic
+from .data.topic_picker import build_context_for, pick_topic
 from .script.writer import write_script
 from .settings import get_settings
 from shorts.core.usage import set_current_video
@@ -158,6 +158,12 @@ def _run_daily_inner(*, lang: str = "en", force: bool = False) -> RunResult | No
     script = write_script(ctx)
     log.info("[%s] script written: %d beats, %d words, format=%s",
              slug, len(script.beats), len(script.narration_text().split()), script.format)
+    # Auto-extract any forward-looking promises (content debt).
+    try:
+        from .planner.debt_extract import extract_and_record
+        extract_and_record(script, source_slug=slug)
+    except Exception as e:
+        log.warning("[%s] debt extraction failed: %s", slug, e)
     with Session(get_engine()) as session:
         script_row = ScriptRow(
             topic_id=topic_row.id,
@@ -196,6 +202,103 @@ def _run_daily_inner(*, lang: str = "en", force: bool = False) -> RunResult | No
         slug=slug, topic_id=topic_row.id, script_id=script_row.id,
         render_id=render_row.id, mp4_path=mp4_path, duration_s=duration_s,
     )
+
+
+def render_planned_item(item, *, lang: str = "en") -> RunResult | None:
+    """Render one planner-scheduled video end-to-end.
+
+    Seeds a TopicContext from the item's tickers/theme, writes the script in the
+    item's format + length band, synthesizes, composes into the review store,
+    and marks the item rendered in plan.json (fulfilling any linked commitment).
+    Returns None if the topic context can't be built (no resolvable tickers).
+    """
+    from .planner import store as plan_store
+    from .planner.debt_extract import extract_and_record
+
+    s = get_settings()
+    s.ensure_dirs()
+    from .db import init_db
+    init_db()
+
+    seed = item.topic_seed
+    ctx = build_context_for(seed.tickers, lang=lang, theme=seed.theme)
+    if ctx is None:
+        log.error("render_planned_item %s: could not build context for %s", item.id, seed.tickers)
+        return None
+
+    slug = _slug_from_planned(item, lang)
+    set_current_video(slug)
+    log.info("[%s] planned render: format=%s tickers=%s", slug, item.format, seed.tickers)
+
+    script = write_script(ctx, format_hint=item.format, length_band=tuple(item.length_band))
+    log.info("[%s] script written: %d beats, %d words, target=%ss",
+             slug, len(script.beats), len(script.narration_text().split()),
+             getattr(script, "target_seconds", "?"))
+
+    # Auto-extract any new promises this script makes (content debt).
+    try:
+        extract_and_record(script, source_slug=slug)
+    except Exception as e:  # never fail a render over debt extraction
+        log.warning("[%s] debt extraction failed: %s", slug, e)
+
+    with Session(get_engine()) as session:
+        topic_row = TopicRow(
+            lang=lang,
+            ticker_primary=ctx.candidates[0].ticker,
+            ticker_secondary=ctx.candidates[1].ticker if len(ctx.candidates) > 1 else None,
+            pivot_reason=seed.theme,
+            score=0.0,
+            raw_context=ctx.model_dump(),
+        )
+        session.add(topic_row); session.commit(); session.refresh(topic_row)
+        script_row = ScriptRow(topic_id=topic_row.id, lang=lang, payload=script.model_dump())
+        session.add(script_row); session.commit(); session.refresh(script_row)
+
+    work_dir = s.output_dir / slug
+    tts = synthesize(text=script.narration_text(), lang=lang, out_dir=work_dir)
+    mp4_path = emit_review_state(slug=slug, script=script, creator_handle=item.source)
+    compose_video(script=script, tts=tts, out_path=mp4_path)
+    duration_s = float(tts.duration_s)
+
+    with Session(get_engine()) as session:
+        render_row = RenderRow(
+            script_id=script_row.id, mp4_path=str(mp4_path),
+            duration_s=duration_s, audio_path=str(tts.audio_path),
+        )
+        session.add(render_row); session.commit(); session.refresh(render_row)
+
+    # Mark the plan item rendered + fulfil its commitment.
+    _mark_item_rendered(plan_store, item_id=item.id, slug=slug,
+                        commitment_id=item.commitment_id)
+
+    set_current_video(None)
+    log.info("[%s] planned render done.", slug)
+    return RunResult(slug=slug, topic_id=topic_row.id, script_id=script_row.id,
+                     render_id=render_row.id, mp4_path=mp4_path, duration_s=duration_s)
+
+
+def _mark_item_rendered(plan_store, *, item_id: str, slug: str,
+                        commitment_id: str | None) -> None:
+    plan = plan_store.load_plan()
+    for it in plan.items:
+        if it.id == item_id:
+            it.status = "rendered"
+            it.slug = slug
+    plan_store.save_plan(plan)
+
+    if commitment_id:
+        debt = plan_store.load_debt()
+        for c in debt.commitments:
+            if c.id == commitment_id:
+                c.status = "fulfilled"
+                c.fulfilled_by = slug
+        plan_store.save_debt(debt)
+
+
+def _slug_from_planned(item, lang: str) -> str:
+    primary = (item.topic_seed.tickers[0].lower() if item.topic_seed.tickers else "mkt")
+    raw = f"{item.scheduled_for.strftime('%Y%m%d')}_{item.format}_{primary}_{item.id[:6]}_{lang}"
+    return re.sub(r"[^a-z0-9_]+", "", raw.lower())
 
 
 def _slug_from_topic(ctx, today_slug: str) -> str:

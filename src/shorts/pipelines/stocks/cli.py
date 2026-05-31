@@ -348,6 +348,71 @@ def run_cmd(lang: str, force: bool) -> None:
     console.print("Review in dashboard: http://127.0.0.1:8765/")
 
 
+@cli.command("plan")
+@click.option("--show/--no-show", default=True, help="Print the plan after building.")
+def plan_cmd(show: bool) -> None:
+    """Regenerate the content plan (data/stocks/plan.json) from live inputs."""
+    from rich.table import Table
+
+    from .planner.orchestrate import regenerate_plan
+
+    plan = regenerate_plan()
+    console.print(f"[green]Plan written:[/green] {len(plan.items)} items.")
+    if not show:
+        return
+    t = Table(show_header=True, header_style="bold cyan")
+    t.add_column("Date"); t.add_column("Format"); t.add_column("Len")
+    t.add_column("Tickers"); t.add_column("Src"); t.add_column("Status")
+    t.add_column("Rationale", overflow="fold")
+    for it in plan.items:
+        lo, hi = it.length_band
+        t.add_row(
+            it.scheduled_for.isoformat(), it.format, f"{lo}-{hi}s",
+            ",".join(it.topic_seed.tickers) or "-", it.source, it.status,
+            it.rationale,
+        )
+    console.print(t)
+
+
+@cli.command("debt")
+def debt_cmd() -> None:
+    """List open content commitments (auto-extracted promises)."""
+    from rich.table import Table
+
+    from .planner import store as plan_store
+
+    debt = plan_store.load_debt()
+    if not debt.commitments:
+        console.print("[dim]No commitments recorded.[/dim]")
+        return
+    t = Table(show_header=True, header_style="bold cyan")
+    t.add_column("Status"); t.add_column("Tickers"); t.add_column("Trigger")
+    t.add_column("Promise", overflow="fold"); t.add_column("From")
+    for c in debt.commitments:
+        t.add_row(c.status, ",".join(c.tickers) or "-", c.trigger or "-",
+                  c.text, c.source_slug or "-")
+    console.print(t)
+
+
+@cli.group()
+def autopilot() -> None:
+    """Auto-pilot content generation."""
+
+
+@autopilot.command("tick")
+@click.option("--lang", default="en", type=click.Choice(["en"]))
+def autopilot_tick(lang: str) -> None:
+    """Render the next due planned item (regenerating the plan if empty)."""
+    from .planner.orchestrate import tick
+
+    result = tick(lang=lang)
+    if result is None:
+        console.print("[yellow]Nothing due to render.[/yellow]")
+        return
+    console.print(f"[green]Rendered.[/green] {result.mp4_path}")
+    console.print(f"  duration={result.duration_s:.1f}s  slug={result.slug}")
+
+
 @cli.group()
 def auth() -> None:
     """One-time auth flows."""
