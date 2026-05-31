@@ -54,6 +54,9 @@ def render(*, brand: Brand, number: str, label: str,
     n_h = bbox_n[3] - bbox_n[1]
 
     label_disp = get_display(label) if brand.direction == "rtl" else label
+    # Even at fit_font's min size a long label can exceed the width budget and
+    # clip when centered — hard-truncate to the pixel budget with an ellipsis.
+    label_disp = _truncate_to_width(draw, label_disp, f_label, FRAME_W - 120)
     bbox_l = draw.textbbox((0, 0), label_disp, font=f_label)
     l_w = bbox_l[2] - bbox_l[0]
     l_h = bbox_l[3] - bbox_l[1]
@@ -85,6 +88,17 @@ def render(*, brand: Brand, number: str, label: str,
               label_disp, font=f_label, fill="#FFFFFF")
 
     return img
+
+
+def _truncate_to_width(draw, text: str, font, max_width: int) -> str:
+    """Trim trailing characters (adding an ellipsis) until text fits max_width."""
+    if draw.textlength(text, font=font) <= max_width:
+        return text
+    ell = "…"
+    s = text
+    while s and draw.textlength(s + ell, font=font) > max_width:
+        s = s[:-1].rstrip()
+    return (s + ell) if s else ell
 
 
 def _fit_size(font_path, text: str, *, max_width: int, start: int) -> int:

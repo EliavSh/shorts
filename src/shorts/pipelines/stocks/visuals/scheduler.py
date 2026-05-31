@@ -270,6 +270,16 @@ def _pick_for_section(section: VisualSection, script, *,
 
 
 def shot_to_clip(shot: VisualShot):
-    """Turn a scheduled shot into a Ken-Burns-animated MoviePy clip."""
-    clip = make_kenburns_clip(shot.image.path, duration_s=shot.end_s - shot.start_s)
+    """Turn a scheduled shot into a Ken-Burns-animated MoviePy clip.
+
+    Generated graphics (number callouts, date cards, CTAs) are authored at
+    exactly 1080x1920 with text inside safe margins. Render them static —
+    Ken Burns zoom/pan/cover-crop would push that centered text out of frame.
+    """
+    is_generated = (shot.image.url or "").startswith("generated://")
+    clip = make_kenburns_clip(
+        shot.image.path,
+        duration_s=shot.end_s - shot.start_s,
+        static=is_generated,
+    )
     return clip.with_start(shot.start_s).with_position(("center", "center"))

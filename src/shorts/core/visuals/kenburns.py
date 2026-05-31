@@ -17,7 +17,8 @@ FRAME_H = 1920
 def make_kenburns_clip(image_path: Path, *, duration_s: float,
                       zoom_from: float = 1.0, zoom_to: float = 1.12,
                       pan: tuple[float, float] | None = None,
-                      seed: int | None = None) -> VideoClip:
+                      seed: int | None = None,
+                      static: bool = False) -> VideoClip:
     """Load image, fill 1080x1920, animate a slow zoom (+ optional pan).
 
     `pan` is (dx_pct, dy_pct) total drift across the clip, expressed as
@@ -25,7 +26,21 @@ def make_kenburns_clip(image_path: Path, *, duration_s: float,
 
     R5: when the source image is wide (chart-like, aspect > 2.0), disable
     zoom and pan — zooming into a chart slices it and hides the takeaway.
+
+    `static=True`: the image is a generated graphic that is already exactly
+    1080x1920 with text laid out inside safe margins. Skip the watermark-band
+    strip, the cover-fit re-crop, and all zoom/pan — any of those scale or
+    shift the frame and push centered text out of bounds. Show it verbatim.
     """
+    if static:
+        base = _load_exact(image_path)
+        base_arr = np.array(base)
+
+        def frame_static(t: float) -> np.ndarray:
+            return base_arr
+
+        return VideoClip(frame_static, duration=duration_s).with_fps(30)
+
     if _looks_like_chart(image_path):
         zoom_from = 1.0
         zoom_to = 1.0
@@ -75,6 +90,16 @@ def _looks_like_chart(image_path: Path) -> bool:
         return (w / h) >= CHART_LIKE_ASPECT
     except Exception:
         return False
+
+
+def _load_exact(path: Path) -> Image.Image:
+    """Open a generated graphic and guarantee a 1080x1920 RGB frame without
+    cropping or shifting — it was authored at exactly this size with text-safe
+    margins, so any band-strip / cover-fit would clip the text."""
+    img = Image.open(path).convert("RGB")
+    if img.size != (FRAME_W, FRAME_H):
+        img = img.resize((FRAME_W, FRAME_H), Image.Resampling.LANCZOS)
+    return img
 
 
 def _load_filled(path: Path) -> Image.Image:
