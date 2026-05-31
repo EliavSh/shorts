@@ -31,6 +31,7 @@ SPEC = FormatSpec(
     ),
     min_tickers=2,
     max_tickers=2,
+    length_band=(90, 130),
 )
 
 

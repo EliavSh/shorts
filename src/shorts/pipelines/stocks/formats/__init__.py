@@ -26,6 +26,9 @@ class FormatSpec:
     after the writer selects this format. Markdown OK."""
     min_tickers: int
     max_tickers: int
+    length_band: tuple[int, int] = (90, 120)
+    """(lo, hi) seconds — the natural length range for this format. The writer
+    chooses an exact `target_seconds` within this band based on topic depth."""
 
 
 class AddOverlaysFn(Protocol):
@@ -71,7 +74,8 @@ def render_format_menu_markdown() -> str:
     """Return a markdown bulleted list of all formats for prompt injection."""
     lines: list[str] = []
     for spec in list_specs():
-        lines.append(f"- **{spec.name}** — {spec.description}")
+        lo, hi = spec.length_band
+        lines.append(f"- **{spec.name}** ({lo}-{hi}s) — {spec.description}")
     return "\n".join(lines)
 
 
@@ -79,3 +83,10 @@ def render_format_menu_markdown() -> str:
 # an import line below.
 from . import deep_dive_one_stock  # noqa: E402,F401
 from . import two_story_pivot  # noqa: E402,F401
+from . import earnings_this_week  # noqa: E402,F401
+from . import earnings_scorecard  # noqa: E402,F401
+from . import news_deep_dive  # noqa: E402,F401
+from . import fun_fact  # noqa: E402,F401
+from . import story_telling  # noqa: E402,F401
+from . import sector_spotlight  # noqa: E402,F401
+from . import myth_vs_reality  # noqa: E402,F401

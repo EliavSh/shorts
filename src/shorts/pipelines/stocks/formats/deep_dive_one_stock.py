@@ -19,14 +19,14 @@ from . import FormatSpec, register
 SPEC = FormatSpec(
     name="deep_dive_one_stock",
     description=(
-        "One stock with enough news/story to fill 60 seconds: earnings beat, "
-        "product launch, regulatory action, big chart pattern. Walk the viewer "
-        "through 3-5 facts that together tell the full story."
+        "One stock with enough news/story to carry the whole video: earnings "
+        "beat, product launch, regulatory action, big chart pattern. Walk the "
+        "viewer through the facts that together tell the full story."
     ),
     prompt_addendum=(
         "Format rules for **deep_dive_one_stock**:\n"
         "- Exactly 1 ticker in `tickers[]`.\n"
-        "- Beat roles must include one `hook` (the headline), 3-5 `body` beats "
+        "- Beat roles must include one `hook` (the headline), several `body` beats "
         "(facts, numbers, context), and one `cta`.\n"
         "- Each body beat should add NEW information; never restate the hook.\n"
         "- All beats share the same ticker_focus (the single ticker).\n"
@@ -34,6 +34,7 @@ SPEC = FormatSpec(
     ),
     min_tickers=1,
     max_tickers=1,
+    length_band=(90, 150),
 )
 
 

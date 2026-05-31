@@ -49,6 +49,56 @@ def find_beats_for_ticker(timings: list[BeatTiming], ticker: str) -> tuple[float
     return matched[0].start_s, matched[-1].end_s
 
 
+def rotating_ticker_cards(
+    *, script: Script, brand, total_duration_s: float,
+    fade_in_s: float = 0.4, fade_out_s: float = 0.4,
+    fallback_first_card_frac: float = 0.45,
+) -> list[ImageClip]:
+    """Render a ticker card per ticker, each visible only during the beats that
+    focus on it (R10 — don't permanently occlude the frame).
+
+    Generic across the multi-ticker formats (earnings roundups, sector tours).
+    When a ticker has no focused beat, it's skipped. When NO beat carries
+    ticker_focus at all (a thin script), we fall back to showing the first
+    ticker's card during the opening `fallback_first_card_frac` of the video so
+    the viewer still gets an anchor.
+    """
+    from ..visuals.ticker_card import OHLC, render_ticker_card
+
+    overlays: list[ImageClip] = []
+    if not script.tickers:
+        return overlays
+
+    timings = compute_beat_timings(script, total_duration_s)
+
+    def card_for(t):
+        ohlc = [OHLC(o, h, l, c) for o, h, l, c in t.ohlc_30d] if t.ohlc_30d else None
+        return render_ticker_card(brand=brand, ticker=t.ticker, name=t.name,
+                                  change_pct=t.change_pct, ohlc=ohlc)
+
+    any_focus = False
+    for t in script.tickers:
+        win = find_beats_for_ticker(timings, t.ticker)
+        if win is None:
+            continue
+        any_focus = True
+        overlays.append(pil_to_clip(
+            card_for(t), start_s=win[0], end_s=win[1],
+            position=brand.ticker_card.position,
+            fade_in_s=fade_in_s, fade_out_s=fade_out_s,
+        ))
+
+    if not any_focus:
+        t = script.tickers[0]
+        visible_until = min(total_duration_s, total_duration_s * fallback_first_card_frac)
+        overlays.append(pil_to_clip(
+            card_for(t), start_s=0.0, end_s=visible_until,
+            position=brand.ticker_card.position,
+            fade_in_s=fade_in_s, fade_out_s=fade_out_s,
+        ))
+    return overlays
+
+
 def pil_to_clip(img: Image.Image, *, start_s: float, end_s: float,
                 position: tuple[int, int] | str = (0, 0),
                 fade_in_s: float = 0.0, fade_out_s: float = 0.0) -> ImageClip:
