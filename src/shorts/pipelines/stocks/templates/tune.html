@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Stocks — tune direction</title>
+  <style>
+    body { background:#0e1116; color:#e6edf3; font:15px/1.55 system-ui, sans-serif; margin:0; }
+    header { padding:18px 28px; border-bottom:1px solid #30363d; display:flex;
+             justify-content:space-between; align-items:center; }
+    header h1 { margin:0; font-size:18px; } header h1 span { color:#22C55E; }
+    a { color:#22C55E; text-decoration:none; } a:hover { text-decoration:underline; }
+    nav a { margin-left:16px; }
+    .wrap { max-width:760px; margin:0 auto; padding:24px 28px; }
+    .card { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:18px 20px;
+            margin-bottom:16px; }
+    h2 { font-size:16px; margin:0 0 4px; } h3 { margin:0; font-size:15px; }
+    .muted { color:#7d8590; font-size:13px; }
+    label { display:block; font-weight:600; margin-bottom:6px; }
+    input, textarea { width:100%; box-sizing:border-box; padding:10px 12px; border-radius:8px;
+                      border:1px solid #30363d; background:#0d1117; color:#e6edf3; font:inherit; }
+    textarea { min-height:84px; resize:vertical; font-family:ui-monospace, monospace; font-size:13px; }
+    .row2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .field { margin-bottom:16px; }
+    .hint { font-size:12px; color:#7d8590; margin-top:5px; }
+    button { font:inherit; padding:10px 20px; border-radius:8px; border:1px solid #22C55E;
+             background:#22C55E; color:#000; cursor:pointer; font-weight:700; }
+    .pill { font-size:12px; color:#7d8590; background:#21262d; padding:2px 8px; border-radius:6px; }
+    code { background:#21262d; padding:1px 5px; border-radius:4px; font-size:12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><span>stocks</span>shorts • tune direction</h1>
+    <nav>
+      <a href="/stocks/">← review</a>
+      <a href="/stocks/plan">content plan</a>
+    </nav>
+  </header>
+  <main class="wrap">
+    <p class="muted">These knobs steer the auto-pilot planner. Saving regenerates the
+      upcoming plan immediately — open content debt and active series are always honored
+      first, then the rest of the week is filled to match your mix.</p>
+
+    <form method="post" action="/stocks/tune">
+      <div class="card">
+        <h2>Volume &amp; cadence</h2>
+        <div class="muted" style="margin-bottom:14px">How many videos to plan, and how far apart to schedule them.</div>
+        <div class="row2">
+          <div class="field" style="margin-bottom:0">
+            <label for="weekly_volume">Weekly volume</label>
+            <input id="weekly_volume" type="number" name="weekly_volume" min="1" max="14"
+                   value="{{ cfg.weekly_volume }}" />
+            <div class="hint">Number of videos in the upcoming queue (1–14).</div>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label for="cadence_days">Cadence (days)</label>
+            <input id="cadence_days" type="number" name="cadence_days" min="1"
+                   value="{{ cfg.cadence_days }}" />
+            <div class="hint">Days between scheduled renders. 1 = daily.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Sector / theme bias</h2>
+        <div class="muted" style="margin-bottom:12px">
+          Weight the topics toward sectors or themes you want to feature more.
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <textarea name="sector_bias" placeholder="energy=2&#10;semiconductors=1.5&#10;ai=1">{% for k, v in cfg.sector_bias.items() %}{{ k }}={{ v }}
+{% endfor %}</textarea>
+          <div class="hint">One <code>theme=weight</code> per line (or comma-separated). Higher weight = more coverage.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Content-type mix</h2>
+        <div class="muted" style="margin-bottom:12px">
+          Relative weight per format when filling the plan. Leave blank for a balanced default.
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <textarea name="type_mix" placeholder="news_deep_dive=2&#10;fun_fact=1&#10;story_telling=1">{% for k, v in cfg.type_mix.items() %}{{ k }}={{ v }}
+{% endfor %}</textarea>
+          <div class="hint">
+            One <code>format=weight</code> per line. Available formats:
+            {% for f in formats %}<span class="pill">{{ f }}</span> {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Directive</h2>
+        <div class="muted" style="margin-bottom:12px">
+          Free-text steer for the next plan, e.g. “make next week about energy and rate cuts”.
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <textarea name="directive" placeholder="e.g. focus on earnings season; lean into AI infrastructure names">{{ cfg.free_text_directive }}</textarea>
+        </div>
+      </div>
+
+      <button type="submit">Save &amp; regenerate plan</button>
+    </form>
+
+    {% if cfg.active_series() %}
+      <div class="card" style="margin-top:24px">
+        <h2>Active series</h2>
+        <div class="muted" style="margin-bottom:10px">Recurring arcs the planner schedules on cadence.</div>
+        {% for sx in cfg.active_series() %}
+          <div style="border-top:1px solid #30363d; padding:8px 0">
+            <b>{{ sx.name }}</b>
+            <span class="pill">part {{ sx.next_part }}{% if sx.total_parts %}/{{ sx.total_parts }}{% endif %}</span>
+            <div class="muted">{{ sx.theme }} • {{ sx.tickers|join(', ') }} • every {{ sx.cadence_days }}d • {{ sx.format }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </main>
+</body>
+</html>

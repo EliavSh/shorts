@@ -54,6 +54,14 @@ def _trigger_publish(slug: str) -> None:
     )
 
 
+def _trigger_autopilot_tick() -> None:
+    job_mod.start(
+        PIPELINE, "autopilot-tick", "(render next planned item)",
+        [sys.executable, "-m", "shorts.cli", "stocks", "autopilot", "tick"],
+        cwd=str(REPO_ROOT),
+    )
+
+
 @router.get("/", response_class=HTMLResponse)
 def index(request: Request) -> Any:
     items = _store.list_items()
@@ -139,3 +147,125 @@ def feedback_submit(text: str = Form(...)) -> RedirectResponse:
     )
     save(PIPELINE, f)
     return RedirectResponse(url="/stocks/feedback", status_code=303)
+
+
+# ── Content planner: plan calendar + tuning knobs ───────────────────────────
+
+@router.get("/plan", response_class=HTMLResponse)
+def plan_page(request: Request) -> Any:
+    from .planner import store as plan_store
+
+    plan = plan_store.load_plan()
+    debt = plan_store.load_debt()
+    cfg = plan_store.load_config()
+    jobs = job_mod.list_jobs(PIPELINE, limit=10)
+    return templates.TemplateResponse(
+        request, "plan.html",
+        {
+            "url_prefix": "/stocks",
+            "plan": plan,
+            "open_debt": debt.open(),
+            "all_debt": debt.commitments,
+            "series": cfg.active_series(),
+            "jobs": jobs,
+        },
+    )
+
+
+@router.post("/plan/regenerate")
+def plan_regenerate(background_tasks: BackgroundTasks) -> RedirectResponse:
+    from .planner.orchestrate import regenerate_plan
+
+    background_tasks.add_task(regenerate_plan)
+    return RedirectResponse(url="/stocks/plan", status_code=303)
+
+
+@router.post("/plan/render-next")
+def plan_render_next(background_tasks: BackgroundTasks) -> RedirectResponse:
+    background_tasks.add_task(_trigger_autopilot_tick)
+    return RedirectResponse(url="/stocks/plan?rendering=1", status_code=303)
+
+
+@router.post("/plan/{item_id}/{action}")
+def plan_item_action(item_id: str, action: str) -> RedirectResponse:
+    """Per-item plan controls: skip | pin | bump (render sooner)."""
+    from datetime import date
+
+    from .planner import store as plan_store
+
+    if action not in {"skip", "pin", "bump"}:
+        raise HTTPException(400, f"unknown action {action!r}")
+    plan = plan_store.load_plan()
+    for it in plan.items:
+        if it.id != item_id:
+            continue
+        if action == "skip":
+            it.status = "skipped"
+        elif action == "pin":
+            it.pinned = not it.pinned
+        elif action == "bump":
+            it.scheduled_for = date.today()
+            it.pinned = True
+    plan_store.save_plan(plan)
+    return RedirectResponse(url="/stocks/plan", status_code=303)
+
+
+@router.get("/tune", response_class=HTMLResponse)
+def tune_page(request: Request) -> Any:
+    from .planner import store as plan_store
+
+    cfg = plan_store.load_config()
+    return templates.TemplateResponse(
+        request, "tune.html",
+        {"url_prefix": "/stocks", "cfg": cfg, "formats": _format_names()},
+    )
+
+
+@router.post("/tune")
+def tune_submit(
+    background_tasks: BackgroundTasks,
+    weekly_volume: int = Form(5),
+    cadence_days: int = Form(1),
+    sector_bias: str = Form(""),
+    type_mix: str = Form(""),
+    directive: str = Form(""),
+) -> RedirectResponse:
+    """Write orchestration.json from the knobs, then regenerate the plan.
+
+    sector_bias / type_mix are free-text "key=weight" lines (one per line or
+    comma-separated) — forgiving to parse so the form stays simple.
+    """
+    from .planner import store as plan_store
+    from .planner.orchestrate import regenerate_plan
+
+    cfg = plan_store.load_config()
+    cfg.weekly_volume = max(1, min(int(weekly_volume), 14))
+    cfg.cadence_days = max(1, int(cadence_days))
+    cfg.sector_bias = _parse_weights(sector_bias)
+    cfg.type_mix = _parse_weights(type_mix)
+    cfg.free_text_directive = directive.strip()
+    plan_store.save_config(cfg)
+
+    background_tasks.add_task(regenerate_plan)
+    return RedirectResponse(url="/stocks/plan?tuned=1", status_code=303)
+
+
+def _format_names() -> list[str]:
+    from . import formats
+    return [s.name for s in formats.list_specs()]
+
+
+def _parse_weights(raw: str) -> dict[str, float]:
+    """Parse 'key=weight' pairs separated by commas or newlines into a dict."""
+    out: dict[str, float] = {}
+    for chunk in raw.replace("\n", ",").split(","):
+        chunk = chunk.strip()
+        if not chunk or "=" not in chunk:
+            continue
+        key, _, val = chunk.partition("=")
+        key = key.strip()
+        try:
+            out[key] = float(val.strip())
+        except ValueError:
+            continue
+    return out

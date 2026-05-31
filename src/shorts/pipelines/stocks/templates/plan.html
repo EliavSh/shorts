@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Stocks — content plan</title>
+  <style>
+    body { background:#0e1116; color:#e6edf3; font:15px/1.55 system-ui, sans-serif; margin:0; }
+    header { padding:18px 28px; border-bottom:1px solid #30363d; display:flex;
+             justify-content:space-between; align-items:center; }
+    header h1 { margin:0; font-size:18px; } header h1 span { color:#22C55E; }
+    a { color:#22C55E; text-decoration:none; } a:hover { text-decoration:underline; }
+    nav a { margin-left:16px; }
+    .wrap { max-width:1100px; margin:0 auto; padding:24px 28px; }
+    .card { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:16px 18px;
+            margin-bottom:14px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    h2 { font-size:16px; } h3 { margin:0; font-size:15px; }
+    .muted { color:#7d8590; font-size:13px; }
+    button { font:inherit; padding:8px 14px; border-radius:8px; border:1px solid #22C55E;
+             background:#22C55E; color:#000; cursor:pointer; font-weight:700; }
+    button.ghost { background:transparent; color:#e6edf3; border-color:#30363d; font-weight:500; }
+    .toolbar { display:flex; gap:10px; align-items:center; margin-bottom:18px; flex-wrap:wrap; }
+    .item { display:flex; gap:14px; align-items:flex-start; justify-content:space-between; }
+    .badge { display:inline-block; font-size:11px; padding:2px 9px; border-radius:999px; font-weight:600; }
+    .src-debt { background:#3a1d1d; color:#f08a8a; }
+    .src-earnings { background:#3a2a00; color:#f0b400; }
+    .src-series { background:#1a2f3a; color:#5bc8f5; }
+    .src-planner { background:#16241c; color:#3fb950; }
+    .st-skipped { opacity:.45; }
+    .st-rendered { border-left:3px solid #2ea043; }
+    .st-rendering { border-left:3px solid #f0b400; }
+    .pill { font-size:12px; color:#7d8590; background:#21262d; padding:2px 8px; border-radius:6px; margin-right:6px; }
+    .when { font-weight:700; min-width:90px; }
+    form.inline { display:inline; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th { color:#7d8590; text-align:left; padding:4px 6px; }
+    td { padding:4px 6px; border-top:1px solid #30363d; vertical-align:top; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><span>stocks</span>shorts • content plan</h1>
+    <nav>
+      <a href="/stocks/">← review</a>
+      <a href="/stocks/tune">tune direction</a>
+    </nav>
+  </header>
+  <main class="wrap">
+    {% if request.query_params.get('rendering') %}
+      <div class="card" style="background:#1c1f25">🔄 Rendering the next item — check Recent jobs below / the review page.</div>
+    {% endif %}
+    {% if request.query_params.get('tuned') %}
+      <div class="card" style="background:#16241c">✓ Direction updated — plan regenerating.</div>
+    {% endif %}
+
+    <div class="toolbar">
+      <form class="inline" method="post" action="/stocks/plan/regenerate">
+        <button class="ghost" type="submit">↻ Regenerate plan</button>
+      </form>
+      <form class="inline" method="post" action="/stocks/plan/render-next">
+        <button type="submit">▶ Render next</button>
+      </form>
+      <span class="muted">Plan generated {{ plan.generated_at }} • auto-pilot renders top-down.</span>
+    </div>
+
+    <h2>Upcoming queue ({{ plan.items|length }})</h2>
+    {% if not plan.items %}
+      <div class="card muted">No plan yet. Click <b>Regenerate plan</b> to build one from live market data, debt, and your tuning.</div>
+    {% else %}
+      {% for it in plan.items %}
+        <div class="card st-{{ it.status }}">
+          <div class="item">
+            <div style="flex:1">
+              <div style="display:flex; gap:10px; align-items:center; margin-bottom:6px">
+                <span class="when">{{ it.scheduled_for.strftime('%a %b %d') }}</span>
+                <span class="badge src-{{ it.source }}">{{ it.source }}</span>
+                <h3>{{ it.format }}</h3>
+                {% if it.pinned %}<span class="pill">📌 pinned</span>{% endif %}
+                <span class="pill">{{ it.length_band[0] }}-{{ it.length_band[1] }}s</span>
+                <span class="pill">{{ it.status }}</span>
+              </div>
+              {% if it.title_hint %}<div style="margin-bottom:4px">{{ it.title_hint }}</div>{% endif %}
+              <div class="muted">
+                {% if it.topic_seed.tickers %}<b>{{ it.topic_seed.tickers|join(', ') }}</b>{% endif %}
+                {% if it.topic_seed.theme %} • {{ it.topic_seed.theme }}{% endif %}
+              </div>
+              <div class="muted" style="margin-top:4px">{{ it.rationale }}</div>
+              {% if it.slug %}<div class="muted" style="margin-top:4px">→ <a href="/stocks/">{{ it.slug }}</a></div>{% endif %}
+            </div>
+            {% if it.status in ('planned', 'rendering') %}
+              <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end">
+                <form class="inline" method="post" action="/stocks/plan/{{ it.id }}/bump">
+                  <button class="ghost" type="submit" title="Render this next">⤴ bump</button></form>
+                <form class="inline" method="post" action="/stocks/plan/{{ it.id }}/pin">
+                  <button class="ghost" type="submit">{{ '📌 unpin' if it.pinned else '📌 pin' }}</button></form>
+                <form class="inline" method="post" action="/stocks/plan/{{ it.id }}/skip">
+                  <button class="ghost" type="submit">✕ skip</button></form>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <div class="grid" style="margin-top:24px">
+      <div class="card">
+        <h2 style="margin-top:0">Open content debt ({{ open_debt|length }})</h2>
+        {% if not all_debt %}
+          <div class="muted">No promises captured yet. They're auto-extracted from scripts that say things like “we'll cover X after earnings”.</div>
+        {% else %}
+          <table>
+            <thead><tr><th>Status</th><th>Tickers</th><th>Trigger</th><th>Promise</th></tr></thead>
+            <tbody>
+              {% for c in all_debt %}
+                <tr>
+                  <td>{{ c.status }}</td>
+                  <td>{{ c.tickers|join(', ') or '—' }}</td>
+                  <td>{{ c.trigger or '—' }}</td>
+                  <td>{{ c.text }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% endif %}
+      </div>
+
+      <div class="card">
+        <h2 style="margin-top:0">Active series ({{ series|length }})</h2>
+        {% if not series %}
+          <div class="muted">No recurring series. Define one on the <a href="/stocks/tune">tune</a> page (e.g. an energy-sector arc).</div>
+        {% else %}
+          {% for sx in series %}
+            <div style="border-top:1px solid #30363d; padding:8px 0">
+              <b>{{ sx.name }}</b> <span class="pill">part {{ sx.next_part }}{% if sx.total_parts %}/{{ sx.total_parts }}{% endif %}</span>
+              <div class="muted">{{ sx.theme }} • {{ sx.tickers|join(', ') }} • every {{ sx.cadence_days }}d</div>
+            </div>
+          {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+
+    {% if jobs %}
+      <h2 style="margin-top:24px">Recent jobs</h2>
+      <div class="card">
+        <table>
+          <thead><tr><th>Status</th><th>Kind</th><th>Target</th><th>Started</th></tr></thead>
+          <tbody>
+            {% for j in jobs %}
+              <tr>
+                <td>{% if j.status == 'running' %}🔄{% elif j.status == 'done' %}✓{% else %}✗{% endif %} {{ j.status }}</td>
+                <td><code>{{ j.kind }}</code></td>
+                <td>{{ j.label }}</td>
+                <td class="muted">{{ j.started_at }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% set any_running = jobs|selectattr('status','equalto','running')|list %}
+        {% if any_running %}<script>setTimeout(() => window.location.reload(), 10000);</script>{% endif %}
+      </div>
+    {% endif %}
+  </main>
+</body>
+</html>
