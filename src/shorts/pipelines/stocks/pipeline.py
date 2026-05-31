@@ -116,6 +116,10 @@ def _run_daily_inner(*, lang: str = "en", force: bool = False) -> RunResult | No
 
     s = get_settings()
     s.ensure_dirs()
+    # Ensure the schema exists before the first query — a fresh checkout or a
+    # blank cloud volume has the DB file but no tables ("no such table: render").
+    from .db import init_db
+    init_db()
 
     # Idempotency: have we already produced a render for today?
     if not force:
