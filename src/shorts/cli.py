@@ -85,6 +85,38 @@ def upload_cmd(item_id: str, pipeline: str, dry_run: bool) -> None:
         stocks_upload(item_id, dry_run=dry_run)
 
 
+@app.command("auth")
+@click.argument("provider", type=click.Choice(["youtube"]))
+@click.option("--pipeline", "-p", required=True, type=click.Choice(["brawl", "stocks"]))
+def auth_cmd(provider: str, pipeline: str) -> None:
+    """One-time login that mints a YouTube refresh token for a pipeline.
+
+    Opens a browser to authorize the channel, then saves the refresh token to
+    <PIPELINE>_YOUTUBE_TOKEN_PATH. Run this locally (the cloud machine has no
+    browser); the resulting token file is what gets shipped to Fly.
+    """
+    from rich.console import Console
+
+    from shorts.config import load_secrets
+    from shorts.core.publish import auth_from_env, run_oauth_flow
+
+    console = Console()
+    load_secrets(require_anthropic=False)
+    auth = auth_from_env(pipeline)
+    if not auth.client_secret_path.exists():
+        raise click.ClickException(
+            f"OAuth client secrets not found at {auth.client_secret_path}.\n"
+            "Download the OAuth 2.0 Client ID (Desktop application) JSON from "
+            "https://console.cloud.google.com/apis/credentials and save it there, "
+            f"then set {pipeline.upper()}_YOUTUBE_CLIENT_SECRET_PATH in .env."
+        )
+    console.print(f"[bold]Authorizing {pipeline} YouTube channel…[/bold] a browser window will open.")
+    path = run_oauth_flow(auth)
+    console.print(f"[green]✓ Authorized.[/green] Token saved to {path}")
+    console.print("Next: try a dry run — "
+                  f"[cyan]shorts upload <slug> --pipeline {pipeline} --dry-run[/cyan]")
+
+
 @app.command("costs")
 @click.option("--pipeline", "-p", type=click.Choice(["brawl", "stocks"]), default=None)
 @click.option("--days", default=30, type=int)

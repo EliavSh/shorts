@@ -62,7 +62,7 @@ def doctor_cmd() -> None:
         str(s.youtube_client_secrets_path) if s.youtube_client_secrets_path.exists()
         else "missing — see deploy/README for OAuth setup")
     add("youtube token", s.youtube_token_path.exists(),
-        "ready" if s.youtube_token_path.exists() else "run `stocksreels auth youtube`")
+        "ready" if s.youtube_token_path.exists() else "run `shorts auth youtube --pipeline stocks`")
 
     # Fonts
     from shorts.pipelines.stocks.visuals.brand import load_brand
@@ -413,30 +413,11 @@ def autopilot_tick(lang: str) -> None:
     console.print(f"  duration={result.duration_s:.1f}s  slug={result.slug}")
 
 
-@cli.group()
-def auth() -> None:
-    """One-time auth flows."""
-
-
-@auth.command("youtube")
-def auth_youtube() -> None:
-    """Run YouTube OAuth flow and save refresh token.
-
-    Setup once:
-      1. https://console.cloud.google.com/apis/credentials → Create OAuth 2.0
-         Client ID → type 'Desktop application'.
-      2. Download the JSON to ./secrets/youtube_client_secret.json.
-      3. Enable YouTube Data API v3 on the project.
-      4. Run this command — it'll open a browser to authorize.
-    """
-    from .publish import run_oauth_flow
-
-    try:
-        path = run_oauth_flow()
-    except Exception as e:
-        console.print(f"[red]OAuth failed: {e}[/red]")
-        raise SystemExit(1) from e
-    console.print(f"[green]Authorized.[/green] Token saved to {path}")
+# YouTube OAuth now lives in the shared top-level CLI:
+#   shorts auth youtube --pipeline stocks
+# (uses core.publish with per-pipeline channel config). The old stocks-local
+# `auth youtube` was removed — it imported a run_oauth_flow that no longer
+# exists here after the move to shorts.core.publish.
 
 
 @cli.command("publish")
