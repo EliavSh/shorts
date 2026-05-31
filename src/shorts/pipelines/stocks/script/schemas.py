@@ -68,6 +68,13 @@ class Script(BaseModel):
     title: str = Field(..., min_length=5, max_length=110)
     description_hashtags: list[str] = Field(default_factory=list, max_length=12)
     tickers: list[TickerSpec] = Field(default_factory=list, max_length=6)
+    target_seconds: int = Field(
+        default=120, ge=60, le=180,
+        description="Intended spoken length of the video. The writer chooses this "
+                    "within the format's length band based on how much substance the "
+                    "topic has. Recorded for the composer and analytics; narration is "
+                    "written to this budget (~2.7 words/sec).",
+    )
     beats: list[Beat] = Field(..., min_length=2, max_length=24)
 
     def narration_text(self) -> str:

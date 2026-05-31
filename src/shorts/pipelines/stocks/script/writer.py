@@ -17,12 +17,57 @@ log = logging.getLogger(__name__)
 
 _PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 
+# Pacing constant shared with the length-guidance math. edge-tts / ElevenLabs
+# both land close to this for calm finance narration.
+_WORDS_PER_SECOND = 2.7
+# Roughly one narrative beat per this many spoken seconds.
+_SECONDS_PER_BEAT = 13
 
-def _load_system_prompt(lang: str) -> str:
+
+def _length_guidance(length_band: tuple[int, int] | None) -> str:
+    """Render the prose that tells the model how long to make the video.
+
+    `length_band` bounds the writer's choice of `target_seconds`. When None we
+    use the full 90–180s Shorts range and let the model decide entirely on
+    topic depth.
+    """
+    lo, hi = length_band or (90, 180)
+    lo = max(60, min(lo, 180))
+    hi = max(lo, min(hi, 180))
+
+    def words(sec: int) -> int:
+        return round(sec * _WORDS_PER_SECOND / 10) * 10
+
+    def beats(sec: int) -> int:
+        return max(2, round(sec / _SECONDS_PER_BEAT))
+
+    if lo == hi:
+        return (
+            f"Make this video **{lo} seconds** long. At ~{_WORDS_PER_SECOND} words/sec "
+            f"that is about **{words(lo)} words** across roughly **{beats(lo)} beats**. "
+            f"Set `target_seconds` to {lo}."
+        )
+    return (
+        f"Choose a length between **{lo} and {hi} seconds** and set `target_seconds` to "
+        f"that exact value. Decide based on how much real substance the topic has — "
+        f"enough to satisfy the viewer, never padded with filler.\n\n"
+        f"- A lean topic → ~{lo}s ≈ **{words(lo)} words** across ~{beats(lo)} beats.\n"
+        f"- A rich, layered topic → ~{hi}s ≈ **{words(hi)} words** across ~{beats(hi)} beats.\n\n"
+        f"At ~{_WORDS_PER_SECOND} words/sec, write narration to the word budget for the "
+        f"`target_seconds` you pick. If the topic context is thin, pick the shorter end "
+        f"rather than inventing detail."
+    )
+
+
+def _load_system_prompt(lang: str, length_band: tuple[int, int] | None) -> str:
     p = _PROMPTS_DIR / f"system_{lang}.md"
     template = p.read_text(encoding="utf-8")
     menu = formats.render_format_menu_markdown()
-    return template.replace("{format_menu}", menu)
+    return (
+        template
+        .replace("{format_menu}", menu)
+        .replace("{length_guidance}", _length_guidance(length_band))
+    )
 
 
 def _topic_to_user_message(ctx: TopicContext, format_hint: str | None) -> str:
@@ -45,12 +90,18 @@ def _topic_to_user_message(ctx: TopicContext, format_hint: str | None) -> str:
 
 
 def write_script(ctx: TopicContext, *, model: str | None = None,
-                 format_hint: str | None = None) -> Script:
+                 format_hint: str | None = None,
+                 length_band: tuple[int, int] | None = None) -> Script:
     """Generate a script for the given topic context.
 
     If `format_hint` is provided, that format's specific rules are appended to
     the user message and the model is gently steered to use it. Otherwise the
     model picks from the menu.
+
+    `length_band` (lo, hi) seconds bounds the writer's choice of
+    `target_seconds`. When None, the full 90–180s Shorts range applies and the
+    model decides purely on topic depth. When a `format_hint` is given and no
+    explicit band is passed, the format's own `length_band` is used.
     """
     s = get_settings()
     if not s.anthropic_api_key:
@@ -59,8 +110,11 @@ def write_script(ctx: TopicContext, *, model: str | None = None,
             "use write_script_from_fixture() for offline testing."
         )
 
+    if length_band is None and format_hint:
+        length_band = getattr(formats.get_spec(format_hint), "length_band", None)
+
     client = make_anthropic()
-    system_prompt = _load_system_prompt(ctx.lang)
+    system_prompt = _load_system_prompt(ctx.lang, length_band)
     user_message = _topic_to_user_message(ctx, format_hint)
     chosen_model = model or s.claude_model
 
