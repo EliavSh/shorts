@@ -11,11 +11,15 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+# Fine-grained per-frame progress emitted by the stocks composer.
+_PROGRESS_RE = re.compile(r"^RENDER_PROGRESS (\d+)/(\d+)\s*$")
 
 from shorts.config import pipeline_data_dir
 
@@ -128,6 +132,7 @@ def start(
         "stage_label": "Queued…",
         "stage_idx": 0,
         "stage_total": len(stage_patterns or []),
+        "render_pct": None,
     }
     with _lock:
         jobs = _load(pipeline)
@@ -153,11 +158,22 @@ def _watch(
     tail: list[str] = []
     tail_bytes = 0
     best_idx = -1  # furthest-progressed stage matched so far
+    last_pct = -1
     try:
         stream = proc.stdout
         if stream is not None:
             for raw in stream:
                 line = raw.decode("utf-8", errors="replace").rstrip("\r\n")
+                # Fine-grained frame progress emitted by the composer
+                # ("RENDER_PROGRESS done/total"). Don't pollute the log tail.
+                m = _PROGRESS_RE.match(line)
+                if m:
+                    done, total = int(m.group(1)), int(m.group(2))
+                    pct = int(done * 100 / total) if total else 0
+                    if pct != last_pct:
+                        last_pct = pct
+                        _set_fields(pipeline, job_id, render_pct=pct)
+                    continue
                 tail.append(line)
                 tail_bytes += len(line) + 1
                 while tail_bytes > _LOG_TAIL_BYTES and len(tail) > 1:
@@ -167,8 +183,11 @@ def _watch(
                 for i, (needle, label) in enumerate(patterns):
                     if i > best_idx and needle in line:
                         best_idx = i
+                        # New stage → reset any fine-grained render progress.
                         _set_fields(pipeline, job_id,
-                                    stage_label=label, stage_idx=i + 1)
+                                    stage_label=label, stage_idx=i + 1,
+                                    render_pct=None)
+                        last_pct = -1
                         break
         rc = proc.wait()
         _set_fields(

@@ -29,6 +29,11 @@ COPY deploy/ deploy/
 
 RUN pip install --no-cache-dir -e .
 
+# Stamp the build with the deploying commit so the dashboard can show which code
+# is live. Placed after pip install so changing it doesn't bust the deps cache.
+ARG GIT_SHA=dev
+ENV APP_VERSION=$GIT_SHA
+
 EXPOSE 8000
 
 # Bump to force re-seeding the volume with refreshed review clips on next boot.

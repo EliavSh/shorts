@@ -44,11 +44,10 @@ primary_region = "fra"   # Frankfurt — closest to Israel; switch to "iad"/"sjc
   min_machines_running = 1
 
 [[vm]]
-  # moviepy composites every frame in Python at 1080x1920 and holds many full-res
-  # image buffers — on 1 CPU / 2GB that swapped to disk and a render could take an
-  # HOUR. 2 CPUs (faster ffmpeg encode + less contention) and 4GB (no swap) bring
-  # renders back to minutes. ~$10/mo always-on; bump cpu_kind to "performance" if
-  # still slow.
-  cpu_kind = "shared"
+  # moviepy composites every frame in Python (single-threaded) at 1080x1920 — the
+  # render bottleneck. Dedicated "performance" cores are much faster per-core than
+  # throttled shared ones, and 4GB stops the swap thrashing that made renders take
+  # an hour on shared-1x/2GB. performance-2x ≈ $25-30/mo always-on.
+  cpu_kind = "performance"
   cpus = 2
   memory_mb = 4096

@@ -153,6 +153,8 @@ def _collect_items() -> tuple[list, list, dict[str, dict]]:
 
 @router.get("/", response_class=HTMLResponse)
 def index(request: Request) -> Any:
+    from shorts.version import build_id
+
     from .schedule import SCHEDULE_UTC_HOURS, next_runs
 
     today_items, earlier_items, meta = _collect_items()
@@ -181,6 +183,7 @@ def index(request: Request) -> Any:
             "jobs": jobs,
             "render_kinds": sorted(RENDER_KINDS),
             "next_runs": [d.isoformat() for d in next_runs(n_slots)],
+            "version": build_id(),
         },
     )
 

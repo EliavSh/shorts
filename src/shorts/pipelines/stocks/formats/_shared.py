@@ -42,11 +42,50 @@ def compute_beat_timings(script: Script, total_duration_s: float) -> list[BeatTi
 
 
 def find_beats_for_ticker(timings: list[BeatTiming], ticker: str) -> tuple[float, float] | None:
-    """Return (start_s, end_s) window covering all beats focused on `ticker`."""
+    """Return (start_s, end_s) window covering all beats focused on `ticker`.
+
+    NOTE: for non-contiguous focus this spans the gap and can enclose another
+    ticker's window — use `ticker_runs` for card scheduling so cards never
+    overlap."""
     matched = [t for t in timings if t.beat.ticker_focus and t.beat.ticker_focus.upper() == ticker.upper()]
     if not matched:
         return None
     return matched[0].start_s, matched[-1].end_s
+
+
+def ticker_runs(timings: list[BeatTiming]) -> list[tuple[str, float, float]]:
+    """Group consecutive beats by `ticker_focus` into contiguous, NON-OVERLAPPING
+    runs → exactly one ticker card on screen at a time, tracking the narration.
+
+    A `None`-focus beat (hook/pivot/cta) is absorbed into the surrounding run
+    only when the SAME ticker continues on both sides (so the card doesn't flicker
+    off for one beat). A focus change leaves the in-between None beats as a gap
+    (clean handoff — e.g. the pivot beat, where the compare card can go).
+    """
+    foci: list[str | None] = [
+        ((t.beat.ticker_focus or "").upper() or None) for t in timings
+    ]
+    n = len(foci)
+    eff = list(foci)
+    for i in range(n):
+        if eff[i] is not None:
+            continue
+        prev = next((foci[j] for j in range(i - 1, -1, -1) if foci[j]), None)
+        nxt = next((foci[j] for j in range(i + 1, n) if foci[j]), None)
+        if prev is not None and prev == nxt:
+            eff[i] = prev  # same ticker straddles the gap → keep its card up
+    runs: list[tuple[str, float, float]] = []
+    i = 0
+    while i < n:
+        if eff[i] is None:
+            i += 1
+            continue
+        j = i
+        while j + 1 < n and eff[j + 1] == eff[i]:
+            j += 1
+        runs.append((eff[i], timings[i].start_s, timings[j].end_s))
+        i = j + 1
+    return runs
 
 
 def rotating_ticker_cards(
@@ -70,29 +109,32 @@ def rotating_ticker_cards(
         return overlays
 
     timings = compute_beat_timings(script, total_duration_s)
+    by_symbol = {t.ticker.upper(): t for t in script.tickers}
+    _cache: dict[str, object] = {}
 
-    def card_for(t):
-        ohlc = [OHLC(o, h, l, c) for o, h, l, c in t.ohlc_30d] if t.ohlc_30d else None
-        return render_ticker_card(brand=brand, ticker=t.ticker, name=t.name,
-                                  change_pct=t.change_pct, ohlc=ohlc)
+    def card_for(sym: str):
+        if sym not in _cache:
+            t = by_symbol[sym]
+            ohlc = [OHLC(o, h, l, c) for o, h, l, c in t.ohlc_30d] if t.ohlc_30d else None
+            _cache[sym] = render_ticker_card(brand=brand, ticker=t.ticker, name=t.name,
+                                             change_pct=t.change_pct, ohlc=ohlc)
+        return _cache[sym]
 
-    any_focus = False
-    for t in script.tickers:
-        win = find_beats_for_ticker(timings, t.ticker)
-        if win is None:
-            continue
-        any_focus = True
-        overlays.append(pil_to_clip(
-            card_for(t), start_s=win[0], end_s=win[1],
-            position=brand.ticker_card.position,
-            fade_in_s=fade_in_s, fade_out_s=fade_out_s,
-        ))
-
-    if not any_focus:
-        t = script.tickers[0]
+    # One non-overlapping card per contiguous run of the same focus.
+    runs = [(sym, s, e) for sym, s, e in ticker_runs(timings) if sym in by_symbol]
+    if runs:
+        for sym, s, e in runs:
+            overlays.append(pil_to_clip(
+                card_for(sym), start_s=s, end_s=e,
+                position=brand.ticker_card.position,
+                fade_in_s=fade_in_s, fade_out_s=fade_out_s,
+            ))
+    else:
+        # No beat carried ticker_focus — anchor with the first ticker's card.
+        sym = script.tickers[0].ticker.upper()
         visible_until = min(total_duration_s, total_duration_s * fallback_first_card_frac)
         overlays.append(pil_to_clip(
-            card_for(t), start_s=0.0, end_s=visible_until,
+            card_for(sym), start_s=0.0, end_s=visible_until,
             position=brand.ticker_card.position,
             fade_in_s=fade_in_s, fade_out_s=fade_out_s,
         ))

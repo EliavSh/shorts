@@ -5,9 +5,9 @@ from moviepy import ImageClip
 
 from ..script.schemas import Script
 from shorts.core.visuals.brand import Brand
-from ..visuals.ticker_card import render_ticker_card
+from ..visuals.ticker_card import render_compare_card, render_ticker_card
 from ..voice.tts import TTSResult
-from ._shared import compute_beat_timings, find_beats_for_ticker, pil_to_clip
+from ._shared import compute_beat_timings, pil_to_clip, ticker_runs
 from . import FormatSpec, register
 
 
@@ -43,30 +43,38 @@ def add_overlays(*, script: Script, tts: TTSResult, brand: Brand,
         return overlays  # composer will still draw captions + disclaimer
 
     primary, secondary = script.tickers[0], script.tickers[1]
+    by_symbol = {t.ticker.upper(): t for t in (primary, secondary)}
+    pos = brand.ticker_card.position
 
-    # Try to find tight windows from beats' ticker_focus. Fall back to "first half / second half" split around the pivot beat.
-    win_a = find_beats_for_ticker(timings, primary.ticker)
-    win_b = find_beats_for_ticker(timings, secondary.ticker)
+    def _solo(t):
+        return render_ticker_card(brand=brand, ticker=t.ticker, name=t.name,
+                                  change_pct=t.change_pct, ohlc=_ohlc_or_none(t.ohlc_30d))
 
-    if win_a is None or win_b is None:
-        pivot_idx = next((i for i, t in enumerate(timings) if t.beat.role == "pivot"), len(timings) // 2)
-        win_a = (timings[0].start_s, timings[pivot_idx - 1].end_s if pivot_idx > 0 else timings[0].end_s)
-        win_b = (timings[pivot_idx + 1].start_s if pivot_idx + 1 < len(timings) else timings[-1].start_s,
-                 timings[-1].end_s)
+    # One non-overlapping card per contiguous focus run (A … pivot-gap … B).
+    runs = [(sym, s, e) for sym, s, e in ticker_runs(timings) if sym in by_symbol]
+    if not runs:
+        # Thin script with no ticker_focus: split A first / B second, no overlap.
+        pivot_idx = next((i for i, t in enumerate(timings) if t.beat.role == "pivot"),
+                         len(timings) // 2)
+        mid = timings[pivot_idx].start_s if 0 <= pivot_idx < len(timings) else total_duration_s / 2
+        runs = [(primary.ticker.upper(), 0.0, mid),
+                (secondary.ticker.upper(), mid, total_duration_s)]
 
-    # R10 — fade ticker cards in/out so they don't permanently occlude content.
-    overlays.append(pil_to_clip(
-        render_ticker_card(brand=brand, ticker=primary.ticker, name=primary.name,
-                           change_pct=primary.change_pct, ohlc=_ohlc_or_none(primary.ohlc_30d)),
-        start_s=win_a[0], end_s=win_a[1], position=brand.ticker_card.position,
-        fade_in_s=0.4, fade_out_s=0.4,
-    ))
-    overlays.append(pil_to_clip(
-        render_ticker_card(brand=brand, ticker=secondary.ticker, name=secondary.name,
-                           change_pct=secondary.change_pct, ohlc=_ohlc_or_none(secondary.ohlc_30d)),
-        start_s=win_b[0], end_s=win_b[1], position=brand.ticker_card.position,
-        fade_in_s=0.4, fade_out_s=0.4,
-    ))
+    _cache: dict[str, object] = {}
+    for sym, s, e in runs:
+        if sym not in _cache:
+            _cache[sym] = _solo(by_symbol[sym])
+        overlays.append(pil_to_clip(_cache[sym], start_s=s, end_s=e, position=pos,
+                                    fade_in_s=0.4, fade_out_s=0.4))
+
+    # The pivot beat is the causal bridge — show BOTH tickers together there.
+    pivot = next((t for t in timings if t.beat.role == "pivot"), None)
+    if pivot is not None and pivot.end_s > pivot.start_s:
+        overlays.append(pil_to_clip(
+            render_compare_card(brand=brand, primary=primary, secondary=secondary),
+            start_s=pivot.start_s, end_s=pivot.end_s, position=pos,
+            fade_in_s=0.3, fade_out_s=0.3,
+        ))
     return overlays
 
 

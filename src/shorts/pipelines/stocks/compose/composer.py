@@ -39,6 +39,40 @@ FPS = 24
 FALLBACK_BG = (12, 24, 48)
 
 
+def _progress_logger():
+    """A proglog logger that prints clean `RENDER_PROGRESS done/total` lines to
+    stdout as moviepy writes frames, so the dashboard can show a live render bar.
+    Locks onto the largest progress bar (the video-frame writer, not the short
+    audio bar) and throttles to whole-percent steps. Falls back to None (moviepy
+    default) if proglog isn't importable."""
+    try:
+        import proglog
+    except Exception:
+        return None
+
+    class _PL(proglog.ProgressBarLogger):
+        def __init__(self) -> None:
+            super().__init__()
+            self._main = None
+            self._main_total = 0
+            self._last_pct = -1
+
+        def bars_callback(self, bar, attr, value, old_value=None):
+            if attr != "index":
+                return
+            total = (self.bars.get(bar) or {}).get("total") or 0
+            if total > self._main_total:  # the frame writer is the biggest bar
+                self._main, self._main_total, self._last_pct = bar, total, -1
+            if bar != self._main or self._main_total <= 0:
+                return
+            pct = int(value * 100 / self._main_total)
+            if pct != self._last_pct:
+                self._last_pct = pct
+                print(f"RENDER_PROGRESS {value}/{self._main_total}", flush=True)
+
+    return _PL()
+
+
 def _pick_music_bed(duration_s: float):
     """Pick a random track from assets/music/, loop+duck it to fit the video.
 
@@ -146,7 +180,7 @@ def compose_video(*, script: Script, tts: TTSResult, out_path: Path,
             preset="veryfast",
             threads=4,
             ffmpeg_params=["-movflags", "+faststart"],
-            logger=None,
+            logger=_progress_logger(),
         )
         os.replace(tmp_out, out_path)
     except BaseException:

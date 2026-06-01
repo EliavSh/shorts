@@ -26,6 +26,9 @@
         display:grid; place-items:center; font-weight:800; color:#04130a; box-shadow:var(--shadow); }
     .brand h1 { margin:0; font-size:16px; letter-spacing:.2px; }
     .brand small { color:var(--muted); display:block; font-size:11px; font-weight:500; }
+    .ver-badge { font-size:11px; font-weight:600; color:var(--muted); background:var(--surface);
+        border:1px solid var(--border); padding:3px 9px; border-radius:999px;
+        font-variant-numeric:tabular-nums; white-space:nowrap; }
     nav.tabs { display:flex; gap:4px; }
     nav.tabs a { color:var(--muted); padding:7px 13px; border-radius:9px; font-weight:600; font-size:14px; }
     nav.tabs a:hover { color:var(--text); background:var(--surface); text-decoration:none; }
@@ -142,6 +145,7 @@
         <h1>Market Minute</h1>
         <small>staging · review &amp; publish</small>
       </div>
+      {% if version %}<span class="ver-badge" title="deployed build (git commit) — match it to GitHub to confirm what's live">{{ version }}</span>{% endif %}
     </div>
     <nav class="tabs">
       <a href="{{ url_prefix }}/" class="active">Today</a>
@@ -293,9 +297,17 @@
           const empty = document.getElementById("today-empty");
           if (empty) empty.remove();
         }
-        node.querySelector(".stage").textContent = j.stage_label || STAGE_FALLBACK;
-        const total = j.stage_total || 1;
-        const pct = Math.round(((j.stage_idx || 0) / total) * 100);
+        // Fine-grained frame progress (during "Rendering the final cut…") wins
+        // over the coarse stage bar when available.
+        let pct, label = j.stage_label || STAGE_FALLBACK;
+        if (j.render_pct !== null && j.render_pct !== undefined) {
+          pct = j.render_pct;
+          label = label + " " + pct + "%";
+        } else {
+          const total = j.stage_total || 1;
+          pct = Math.round(((j.stage_idx || 0) / total) * 100);
+        }
+        node.querySelector(".stage").textContent = label;
         node.querySelector(".bar > i").style.width = Math.max(6, pct) + "%";
       }
       return running;
