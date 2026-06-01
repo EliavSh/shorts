@@ -1,0 +1,58 @@
+{# Shared clip-card macro. Imported `with context` by index.html and _cards.html
+   so it can see `meta`, `url_prefix`, and `latest_version_of`. Each card carries
+   a `data-run-id` so the dashboard poller can prepend only genuinely-new cards
+   without touching (reloading) any already-playing <video>. #}
+{% macro clip_card(item) %}
+  {% set lv = latest_version_of(item) %}
+  {% set m = meta.get(item.run_id, {}) %}
+  <div class="card" data-run-id="{{ item.run_id }}">
+    {% if lv %}
+      <video controls preload="metadata"
+             src="{{ url_prefix }}/video/{{ item.run_id }}/v{{ lv.v }}"></video>
+    {% endif %}
+    <div class="body">
+      <div class="chips" style="justify-content:space-between">
+        <span class="pill {{ item.status }}">
+          {% if item.status == 'processing' %}● Improving
+          {% elif item.status == 'publishing' %}● Uploading
+          {% else %}● Ready{% endif %}
+        </span>
+        <span class="chips" style="gap:6px">
+          {% if m.cost_usd is not none %}
+            <span class="pill cost" title="Total API cost to make this clip">${{ '%.2f'|format(m.cost_usd) }}</span>
+          {% endif %}
+          {% if item.current_version and item.current_version > 1 %}
+            <span class="pill ver">v{{ item.current_version }} · edited</span>
+          {% endif %}
+        </span>
+      </div>
+      <h3>{{ lv.title if lv else item.source_title }}</h3>
+      <div class="chips">
+        {% if m.format %}<span class="chip">{{ m.format.replace('_',' ') }}</span>{% endif %}
+        {% if m.sector %}<span class="chip">{{ m.sector }}</span>{% endif %}
+        {% if m.duration_s %}<span class="chip">{{ m.duration_s|round|int }}s</span>{% endif %}
+        {% for t in m.tickers %}<span class="chip">{{ t }}</span>{% endfor %}
+      </div>
+
+      <form class="comment" method="post" action="{{ url_prefix }}/run/{{ item.run_id }}/comment">
+        <input type="text" name="text" placeholder="What to fix? (e.g. add Q revenue)"
+               {% if item.status != 'ready' %}disabled{% endif %} />
+        <button class="btn btn-ghost" type="submit"
+                {% if item.status != 'ready' %}disabled{% endif %}>Improve</button>
+      </form>
+
+      <div class="actions">
+        <form method="post" action="{{ url_prefix }}/run/{{ item.run_id }}/publish">
+          <button class="btn btn-primary" type="submit"
+                  {% if item.status != 'ready' %}disabled{% endif %}>
+            {% if item.status == 'publishing' %}Uploading…{% else %}Publish (unlisted){% endif %}
+          </button>
+        </form>
+        <form method="post" action="{{ url_prefix }}/run/{{ item.run_id }}/delete"
+              onsubmit="return confirm('Delete this clip from the stage?');">
+          <button class="icon-btn" type="submit" title="Reject &amp; delete">✕</button>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endmacro %}

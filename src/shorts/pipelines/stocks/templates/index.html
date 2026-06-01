@@ -70,6 +70,39 @@
     .pill.processing { background:rgba(240,180,0,.14); color:var(--amber); }
     .pill.publishing { background:rgba(34,211,238,.14); color:var(--cyan); }
     .pill.ver { background:var(--surface-2); color:var(--muted); }
+    .pill.cost { background:rgba(34,211,238,.12); color:var(--cyan); font-variant-numeric:tabular-nums; }
+
+    /* Next-generation countdown strip */
+    .nextgen { display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+        background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+        padding:12px 16px; margin-bottom:22px; }
+    .nextgen .lbl { color:var(--muted); font-size:13px; font-weight:600; }
+    .nextgen .count { font-size:15px; font-weight:800; font-variant-numeric:tabular-nums;
+        color:var(--accent); }
+    .nextgen .slots { display:flex; gap:6px; flex-wrap:wrap; margin-left:auto; }
+    .nextgen .slot { font-size:11.5px; color:var(--muted); background:var(--surface-2);
+        border:1px solid var(--border); padding:2px 9px; border-radius:999px;
+        font-variant-numeric:tabular-nums; }
+
+    /* Live render placeholder (skeleton) */
+    .skeleton { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+        overflow:hidden; display:flex; flex-direction:column; }
+    .skeleton .shimmer { width:100%; aspect-ratio:9/16; position:relative; overflow:hidden;
+        background:linear-gradient(180deg,#11161f,#0d1117); display:grid; place-items:center; }
+    .skeleton .shimmer::after { content:""; position:absolute; inset:0;
+        background:linear-gradient(100deg,transparent 20%,rgba(255,255,255,.06) 50%,transparent 80%);
+        transform:translateX(-100%); animation:sweep 1.4s ease-in-out infinite; }
+    @keyframes sweep { to { transform:translateX(100%); } }
+    .skeleton .spin { width:34px; height:34px; border-radius:50%;
+        border:3px solid rgba(34,197,94,.25); border-top-color:var(--accent);
+        animation:rot .8s linear infinite; z-index:1; }
+    @keyframes rot { to { transform:rotate(360deg); } }
+    .skeleton .body { padding:13px 14px 15px; display:flex; flex-direction:column; gap:10px; }
+    .skeleton .stage { font-weight:700; font-size:14px; }
+    .skeleton .bar { height:6px; border-radius:999px; background:var(--surface-2); overflow:hidden; }
+    .skeleton .bar > i { display:block; height:100%; width:0; border-radius:999px;
+        background:linear-gradient(90deg,var(--accent),var(--accent-d)); transition:width .4s ease; }
+    .skeleton .lbl { color:var(--muted); font-size:12px; }
 
     .chips { display:flex; flex-wrap:wrap; gap:6px; }
     .chip { font-size:11px; color:var(--muted); background:var(--surface-2);
@@ -120,6 +153,16 @@
   </header>
 
   <main class="wrap">
+    {% from "_card_macro.html" import clip_card with context %}
+
+    <div class="nextgen" id="nextgen" style="display:none">
+      <span class="lbl">Next auto-generation in</span>
+      <span class="count" id="nextgen-count">—</span>
+      <div class="slots" id="nextgen-slots">
+        {% for ts in next_runs %}<span class="slot" data-ts="{{ ts }}"></span>{% endfor %}
+      </div>
+    </div>
+
     <div class="toolbar">
       <form method="post" action="{{ url_prefix }}/generate">
         <select name="mode">
@@ -132,66 +175,15 @@
       <div class="counter"><b>{{ today_items|length }}</b> / {{ daily_target }} staged today</div>
     </div>
 
-    {% macro clip_card(item) %}
-      {% set lv = latest_version_of(item) %}
-      {% set m = meta.get(item.run_id, {}) %}
-      <div class="card">
-        {% if lv %}
-          <video controls preload="metadata"
-                 src="{{ url_prefix }}/video/{{ item.run_id }}/v{{ lv.v }}"></video>
-        {% endif %}
-        <div class="body">
-          <div class="chips" style="justify-content:space-between">
-            <span class="pill {{ item.status }}">
-              {% if item.status == 'processing' %}● Improving
-              {% elif item.status == 'publishing' %}● Uploading
-              {% else %}● Ready{% endif %}
-            </span>
-            {% if item.current_version and item.current_version > 1 %}
-              <span class="pill ver">v{{ item.current_version }} · edited</span>
-            {% endif %}
-          </div>
-          <h3>{{ lv.title if lv else item.source_title }}</h3>
-          <div class="chips">
-            {% if m.format %}<span class="chip">{{ m.format.replace('_',' ') }}</span>{% endif %}
-            {% if m.sector %}<span class="chip">{{ m.sector }}</span>{% endif %}
-            {% if m.duration_s %}<span class="chip">{{ m.duration_s|round|int }}s</span>{% endif %}
-            {% for t in m.tickers %}<span class="chip">{{ t }}</span>{% endfor %}
-          </div>
-
-          <form class="comment" method="post" action="{{ url_prefix }}/run/{{ item.run_id }}/comment">
-            <input type="text" name="text" placeholder="What to fix? (e.g. add Q revenue)"
-                   {% if item.status != 'ready' %}disabled{% endif %} />
-            <button class="btn btn-ghost" type="submit"
-                    {% if item.status != 'ready' %}disabled{% endif %}>Improve</button>
-          </form>
-
-          <div class="actions">
-            <form method="post" action="{{ url_prefix }}/run/{{ item.run_id }}/publish">
-              <button class="btn btn-primary" type="submit"
-                      {% if item.status != 'ready' %}disabled{% endif %}>
-                {% if item.status == 'publishing' %}Uploading…{% else %}Publish (unlisted){% endif %}
-              </button>
-            </form>
-            <form method="post" action="{{ url_prefix }}/run/{{ item.run_id }}/delete"
-                  onsubmit="return confirm('Delete this clip from the stage?');">
-              <button class="icon-btn" type="submit" title="Reject &amp; delete">✕</button>
-            </form>
-          </div>
-        </div>
-      </div>
-    {% endmacro %}
-
     <div class="section-head">
       <h2>Today</h2>
       <span class="sub">your daily batch — improve with a note, then publish unlisted</span>
     </div>
-    {% if today_items %}
-      <div class="grid">
-        {% for item in today_items %}{{ clip_card(item) }}{% endfor %}
-      </div>
-    {% else %}
-      <div class="empty">
+    <div class="grid" id="today-grid">
+      {% for item in today_items %}{{ clip_card(item) }}{% endfor %}
+    </div>
+    {% if not today_items %}
+      <div class="empty" id="today-empty">
         No clips staged for today yet.<br><br>
         Hit <b>+ Generate clip</b> above — or let the auto-pilot stage today's batch of {{ daily_target }}.
       </div>
@@ -243,6 +235,117 @@
     </details>
   </main>
 
-  {% if any_running %}<script>setTimeout(() => location.reload(), 10000);</script>{% endif %}
+  <script>
+  (function () {
+    const PREFIX = "{{ url_prefix }}";
+    const RENDER_KINDS = new Set({{ render_kinds|tojson }});
+
+    // ── Countdown to the next scheduled auto-generation (client-side only) ──
+    const strip = document.getElementById("nextgen");
+    const slotEls = Array.from(document.querySelectorAll("#nextgen-slots .slot"));
+    const slots = slotEls.map(el => new Date(el.dataset.ts));
+    function fmtClock(d) {
+      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+    function fmtLeft(ms) {
+      const s = Math.max(0, Math.floor(ms / 1000));
+      const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+      const p = n => String(n).padStart(2, "0");
+      return (h > 0 ? h + "h " : "") + p(m) + "m " + p(ss) + "s";
+    }
+    slotEls.forEach((el, i) => { el.textContent = fmtClock(slots[i]); el.title = slots[i].toUTCString(); });
+    function tickCountdown() {
+      if (!slots.length) return;
+      const now = Date.now();
+      let next = slots.find(d => d.getTime() > now);
+      if (!next) return;  // all elapsed until next page load refreshes them
+      strip.style.display = "flex";
+      document.getElementById("nextgen-count").textContent = fmtLeft(next.getTime() - now);
+    }
+    if (slots.length) { tickCountdown(); setInterval(tickCountdown, 1000); }
+
+    // ── Live render progress: skeleton placeholders + new-card injection ──
+    const grid = document.getElementById("today-grid");
+    const STAGE_FALLBACK = "Working…";
+    let prevRunning = new Set();   // job ids of render jobs running last poll
+    let pollTimer = null;
+
+    function renderSkeletons(jobs) {
+      const running = jobs.filter(j => j.status === "running" && RENDER_KINDS.has(j.kind));
+      // Remove skeletons whose job is no longer running.
+      const liveIds = new Set(running.map(j => j.id));
+      grid.querySelectorAll(".skeleton-card").forEach(node => {
+        if (!liveIds.has(node.dataset.jobId)) node.remove();
+      });
+      // Add / update a skeleton per running render job.
+      for (const j of running) {
+        let node = grid.querySelector('.skeleton-card[data-job-id="' + j.id + '"]');
+        if (!node) {
+          node = document.createElement("div");
+          node.className = "skeleton skeleton-card";
+          node.dataset.jobId = j.id;
+          node.innerHTML =
+            '<div class="shimmer"><div class="spin"></div></div>' +
+            '<div class="body"><div class="stage"></div>' +
+            '<div class="bar"><i></i></div>' +
+            '<div class="lbl">' + (j.label || "") + '</div></div>';
+          grid.prepend(node);
+          const empty = document.getElementById("today-empty");
+          if (empty) empty.remove();
+        }
+        node.querySelector(".stage").textContent = j.stage_label || STAGE_FALLBACK;
+        const total = j.stage_total || 1;
+        const pct = Math.round(((j.stage_idx || 0) / total) * 100);
+        node.querySelector(".bar > i").style.width = Math.max(6, pct) + "%";
+      }
+      return running;
+    }
+
+    async function injectNewCards() {
+      try {
+        const html = await (await fetch(PREFIX + "/cards")).text();
+        const tmp = document.createElement("div");
+        tmp.innerHTML = html;
+        // Newest cards come first in the fragment; prepend any not already shown.
+        const incoming = Array.from(tmp.querySelectorAll(".card[data-run-id]")).reverse();
+        for (const card of incoming) {
+          const id = card.dataset.runId;
+          if (!grid.querySelector('.card[data-run-id="' + CSS.escape(id) + '"]')) {
+            grid.insertBefore(card, grid.firstChild);
+            const empty = document.getElementById("today-empty");
+            if (empty) empty.remove();
+          }
+        }
+      } catch (e) { /* best-effort */ }
+    }
+
+    async function poll() {
+      try {
+        const data = await (await fetch(PREFIX + "/jobs")).json();
+        const jobs = data.jobs || [];
+        const running = renderSkeletons(jobs);
+        const runningIds = new Set(running.map(j => j.id));
+        // A render job that was running last time but isn't now → it finished;
+        // pull in the freshly-staged clip without reloading the page.
+        let finished = false;
+        prevRunning.forEach(id => { if (!runningIds.has(id)) finished = true; });
+        prevRunning = runningIds;
+        if (finished) await injectNewCards();
+        schedule(running.length > 0);
+      } catch (e) {
+        schedule(false);
+      }
+    }
+    function schedule(fast) {
+      clearTimeout(pollTimer);
+      // Poll briskly while a render runs; slowly otherwise so an autopilot tick
+      // still shows up live. Pause entirely when the tab is hidden.
+      const delay = document.hidden ? 30000 : (fast ? 3000 : 12000);
+      pollTimer = setTimeout(poll, delay);
+    }
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
+    poll();
+  })();
+  </script>
 </body>
 </html>

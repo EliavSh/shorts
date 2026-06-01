@@ -157,7 +157,7 @@ def test_upload_forwards_privacy(monkeypatch) -> None:
 
     monkeypatch.setattr(upload_mod, "upload_short", fake_upload_short)
     # Avoid the purge + ledger tail touching disk.
-    monkeypatch.setattr(upload_mod, "_manifest_meta", lambda mp4: ("fmt", ["NVDA"]))
+    monkeypatch.setattr(upload_mod, "_manifest_meta", lambda mp4: ("fmt", ["NVDA"], 0.12))
     import shorts.pipelines.stocks.planner.published as pub
     monkeypatch.setattr(pub, "record_published", lambda **kw: None)
     monkeypatch.setattr(upload_mod.shutil, "rmtree", lambda p: None)

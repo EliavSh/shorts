@@ -64,6 +64,7 @@ class PublishedEntry(BaseModel):
     youtube_id: str = ""
     youtube_url: str = ""
     published_at: str = ""
+    cost_usd: float | None = None
 
 
 class PublishedLedger(BaseModel):
@@ -92,6 +93,7 @@ def record_published(
     tickers: list[str] | None = None,
     youtube_id: str = "",
     youtube_url: str = "",
+    cost_usd: float | None = None,
 ) -> PublishedEntry:
     """Append one entry to the ledger and persist it. Sector is derived from the
     first ticker via the static map."""
@@ -105,6 +107,7 @@ def record_published(
         youtube_id=youtube_id,
         youtube_url=youtube_url,
         published_at=datetime.now().isoformat(timespec="seconds"),
+        cost_usd=cost_usd,
     )
     ledger = load_published()
     ledger.entries.append(entry)

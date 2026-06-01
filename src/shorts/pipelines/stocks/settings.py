@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     # LLM
     anthropic_api_key: str = ""
-    claude_model: str = "claude-opus-4-7"          # script writer — quality matters
+    claude_model: str = "claude-sonnet-4-6"        # script writer — Sonnet keeps cost ~80% lower; hook + number-grounding passes guard quality
     claude_director_model: str = "claude-sonnet-4-6"  # visual director — cheap structured JSON
     claude_model_fallback: str = "claude-sonnet-4-6"
 

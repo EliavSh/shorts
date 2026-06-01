@@ -1,0 +1,3 @@
+{# Bare Today-grid cards, returned by GET /stocks/cards for the live poller. #}
+{% from "_card_macro.html" import clip_card with context %}
+{% for item in today_items %}{{ clip_card(item) }}{% endfor %}

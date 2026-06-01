@@ -73,17 +73,33 @@ def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
+def _set_fields(pipeline: str, job_id: str, **fields: Any) -> None:
+    """Thread-safe partial update of a single job record."""
+    with _lock:
+        jobs = _load(pipeline)
+        for j in jobs:
+            if j["id"] == job_id:
+                j.update(fields)
+                break
+        _save(pipeline, jobs)
+
+
 def start(
     pipeline: str,
     kind: str,
     label: str,
     cmd: list[str],
     cwd: str | None = None,
+    stage_patterns: list[tuple[str, str]] | None = None,
 ) -> str:
     """Spawn `cmd` as a child process and persist a job record.
 
     `kind` is a coarse category (make-short, regenerate, publish, run, ...)
     `label` is human-readable (e.g. the URL or slug).
+    `stage_patterns` is an optional ordered list of `(substring, label)` pairs;
+    when set, the watcher scans the child's stdout and advances `stage_label`/
+    `stage_idx` as those substrings appear — giving the dashboard a live
+    per-stage progress signal. None → no parsing (status-only, as before).
     Returns the job_id.
     """
     env = os.environ.copy()
@@ -103,6 +119,9 @@ def start(
         "finished_at": None,
         "exit_code": None,
         "log_tail": "",
+        "stage_label": "Queued…",
+        "stage_idx": 0,
+        "stage_total": len(stage_patterns or []),
     }
     with _lock:
         jobs = _load(pipeline)
@@ -110,36 +129,58 @@ def start(
         jobs = jobs[-_MAX_JOBS_KEPT:]
         _save(pipeline, jobs)
     threading.Thread(
-        target=_watch, args=(pipeline, job_id, proc), daemon=True
+        target=_watch, args=(pipeline, job_id, proc, stage_patterns), daemon=True
     ).start()
     return job_id
 
 
-def _watch(pipeline: str, job_id: str, proc: subprocess.Popen) -> None:
+def _watch(
+    pipeline: str,
+    job_id: str,
+    proc: subprocess.Popen,
+    stage_patterns: list[tuple[str, str]] | None = None,
+) -> None:
+    """Stream the child's stdout line-by-line so we can (a) report live stage
+    progress and (b) keep a rolling log tail — then record the final status when
+    it exits."""
+    patterns = stage_patterns or []
+    tail: list[str] = []
+    tail_bytes = 0
+    best_idx = -1  # furthest-progressed stage matched so far
     try:
-        stdout, _ = proc.communicate()
-        rc = proc.returncode
-        tail = (stdout or b"").decode("utf-8", errors="replace")[-_LOG_TAIL_BYTES:]
-        with _lock:
-            jobs = _load(pipeline)
-            for j in jobs:
-                if j["id"] == job_id:
-                    j["status"] = "done" if rc == 0 else "failed"
-                    j["exit_code"] = rc
-                    j["finished_at"] = _now()
-                    j["log_tail"] = tail
-                    break
-            _save(pipeline, jobs)
+        stream = proc.stdout
+        if stream is not None:
+            for raw in stream:
+                line = raw.decode("utf-8", errors="replace").rstrip("\r\n")
+                tail.append(line)
+                tail_bytes += len(line) + 1
+                while tail_bytes > _LOG_TAIL_BYTES and len(tail) > 1:
+                    tail_bytes -= len(tail.pop(0)) + 1
+                # Advance the stage if this line matches a later marker than the
+                # best we've seen. Only persist when the stage actually changes.
+                for i, (needle, label) in enumerate(patterns):
+                    if i > best_idx and needle in line:
+                        best_idx = i
+                        _set_fields(pipeline, job_id,
+                                    stage_label=label, stage_idx=i + 1)
+                        break
+        rc = proc.wait()
+        _set_fields(
+            pipeline, job_id,
+            status="done" if rc == 0 else "failed",
+            exit_code=rc,
+            finished_at=_now(),
+            log_tail="\n".join(tail)[-_LOG_TAIL_BYTES:],
+            stage_label="Done" if rc == 0 else "Failed",
+            stage_idx=len(patterns),
+        )
     except Exception as e:
-        with _lock:
-            jobs = _load(pipeline)
-            for j in jobs:
-                if j["id"] == job_id:
-                    j["status"] = "failed"
-                    j["log_tail"] = f"watcher error: {e}"
-                    j["finished_at"] = _now()
-                    break
-            _save(pipeline, jobs)
+        _set_fields(
+            pipeline, job_id,
+            status="failed",
+            log_tail=("\n".join(tail) + f"\nwatcher error: {e}")[-_LOG_TAIL_BYTES:],
+            finished_at=_now(),
+        )
 
 
 def list_jobs(pipeline: str, limit: int = 20) -> list[dict[str, Any]]:

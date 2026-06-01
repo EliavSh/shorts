@@ -19,17 +19,20 @@ from shorts.core.reviews import ReviewStore, latest_version
 console = Console()
 
 
-def _manifest_meta(mp4) -> tuple[str, list[str]]:
-    """Best-effort (format, [tickers]) from the render's sidecar manifest."""
+def _manifest_meta(mp4) -> tuple[str, list[str], float | None]:
+    """Best-effort (format, [tickers], cost_usd) from the render's sidecar
+    manifest. Read before the artifacts are purged so the cost survives in the
+    published ledger."""
     manifest = mp4.with_suffix(".manifest.json")
     if not manifest.exists():
-        return "", []
+        return "", [], None
     try:
         m = json.loads(manifest.read_text(encoding="utf-8"))
         tickers = [t.get("ticker", "") for t in m.get("tickers", []) if t.get("ticker")]
-        return m.get("format", ""), tickers
+        cost = (m.get("cost_breakdown") or {}).get("total_usd")
+        return m.get("format", ""), tickers, cost
     except Exception:
-        return "", []
+        return "", [], None
 
 
 def upload(slug: str, *, dry_run: bool = False, privacy: str = "unlisted") -> None:
@@ -74,12 +77,12 @@ def upload(slug: str, *, dry_run: bool = False, privacy: str = "unlisted") -> No
     # Record the durable trace, then purge the heavy artifacts. The dashboard is
     # a staging surface: once a clip is safely on YouTube we keep only the ledger
     # line (sector/format/tickers) for the planner + stats, and reclaim the disk.
-    fmt, tickers = _manifest_meta(mp4)
+    fmt, tickers, cost_usd = _manifest_meta(mp4)
     from .planner.published import record_published
 
     record_published(
         slug=slug, title=version.title, fmt=fmt, tickers=tickers,
-        youtube_id=result.video_id, youtube_url=result.url,
+        youtube_id=result.video_id, youtube_url=result.url, cost_usd=cost_usd,
     )
     run_dir = store.output_root / slug
     try:

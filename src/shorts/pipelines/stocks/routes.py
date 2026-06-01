@@ -29,12 +29,32 @@ router = APIRouter(prefix="/stocks", tags=["stocks"])
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 _store = ReviewStore(PIPELINE)
 
+# Job kinds that produce a clip (vs. publish). The dashboard shows a live
+# progress placeholder for these while they run.
+RENDER_KINDS = {"daily-run", "render-fixture", "autopilot-tick", "regen"}
+
+# Ordered (log-substring → friendly label) pairs. The job watcher streams the
+# render subprocess's stdout and advances the stage as these markers appear, so
+# the dashboard can show "Researching the topic…" etc. Order = chronological.
+STAGE_PATTERNS: list[tuple[str, str]] = [
+    ("daily run start", "Researching the topic…"),
+    ("planned render:", "Researching the topic…"),
+    ("topic =", "Researching the topic…"),
+    ("script written", "Writing the script…"),
+    ("synthesizing voice", "Recording the voiceover…"),
+    ("Visual plan:", "Planning the visuals…"),
+    ("visual shots", "Finding images…"),
+    ("Writing ", "Rendering the final cut…"),
+    ("done.", "Wrapping up…"),
+]
+PUBLISH_STAGES: list[tuple[str, str]] = [("Uploading", "Uploading to YouTube…")]
+
 
 def _trigger_run() -> None:
     job_mod.start(
         PIPELINE, "daily-run", "(daily orchestrator)",
         [sys.executable, "-m", "shorts.cli", "stocks", "run"],
-        cwd=str(REPO_ROOT),
+        cwd=str(REPO_ROOT), stage_patterns=STAGE_PATTERNS,
     )
 
 
@@ -42,7 +62,7 @@ def _trigger_render_fixture(slug: str) -> None:
     job_mod.start(
         PIPELINE, "render-fixture", slug,
         [sys.executable, "-m", "shorts.cli", "stocks", "render-fixture", slug],
-        cwd=str(REPO_ROOT),
+        cwd=str(REPO_ROOT), stage_patterns=STAGE_PATTERNS,
     )
 
 
@@ -50,7 +70,7 @@ def _trigger_publish(slug: str) -> None:
     job_mod.start(
         PIPELINE, "publish", slug,
         [sys.executable, "-m", "shorts.cli", "upload", slug, "--pipeline", "stocks"],
-        cwd=str(REPO_ROOT),
+        cwd=str(REPO_ROOT), stage_patterns=PUBLISH_STAGES,
     )
 
 
@@ -59,14 +79,15 @@ def _trigger_autopilot_tick(*, replan: bool = False) -> None:
     if replan:
         cmd.append("--replan")
     label = "(replan + render one fresh clip)" if replan else "(render next planned item)"
-    job_mod.start(PIPELINE, "autopilot-tick", label, cmd, cwd=str(REPO_ROOT))
+    job_mod.start(PIPELINE, "autopilot-tick", label, cmd, cwd=str(REPO_ROOT),
+                  stage_patterns=STAGE_PATTERNS)
 
 
 def _trigger_regen(slug: str) -> None:
     job_mod.start(
         PIPELINE, "regen", slug,
         [sys.executable, "-m", "shorts.cli", "stocks", "regen", slug],
-        cwd=str(REPO_ROOT),
+        cwd=str(REPO_ROOT), stage_patterns=STAGE_PATTERNS,
     )
 
 
@@ -77,13 +98,14 @@ def _clip_meta(run_id: str, version: int) -> dict:
     from .planner.published import sector_for
 
     manifest = _store.short_path(run_id, version).with_suffix(".manifest.json")
-    meta = {"format": "", "sector": "", "tickers": [], "duration_s": None}
+    meta = {"format": "", "sector": "", "tickers": [], "duration_s": None, "cost_usd": None}
     if manifest.exists():
         try:
             m = _json.loads(manifest.read_text(encoding="utf-8"))
             meta["format"] = m.get("format", "")
             meta["tickers"] = [t.get("ticker", "") for t in m.get("tickers", []) if t.get("ticker")]
             meta["duration_s"] = m.get("duration_s")
+            meta["cost_usd"] = (m.get("cost_breakdown") or {}).get("total_usd")
             if meta["tickers"]:
                 meta["sector"] = sector_for(meta["tickers"][0])
         except Exception:
@@ -91,8 +113,8 @@ def _clip_meta(run_id: str, version: int) -> dict:
     return meta
 
 
-@router.get("/", response_class=HTMLResponse)
-def index(request: Request) -> Any:
+def _collect_items() -> tuple[list, list, dict[str, dict]]:
+    """Split staged review items into today/earlier and gather their card meta."""
     from datetime import date
 
     today = date.today().isoformat()
@@ -108,6 +130,14 @@ def index(request: Request) -> Any:
             today_items.append(item)
         else:
             earlier_items.append(item)
+    return today_items, earlier_items, meta
+
+
+@router.get("/", response_class=HTMLResponse)
+def index(request: Request) -> Any:
+    from .schedule import next_runs
+
+    today_items, earlier_items, meta = _collect_items()
 
     cfg = None
     try:
@@ -127,6 +157,24 @@ def index(request: Request) -> Any:
             "latest_version_of": latest_version,
             "url_prefix": "/stocks",
             "jobs": jobs,
+            "render_kinds": sorted(RENDER_KINDS),
+            "next_runs": [d.isoformat() for d in next_runs(3)],
+        },
+    )
+
+
+@router.get("/cards", response_class=HTMLResponse)
+def cards_partial(request: Request) -> Any:
+    """Just the Today-grid card markup — fetched by the dashboard poller to
+    slide a freshly-finished clip in at the top without a full-page reload."""
+    today_items, _earlier, meta = _collect_items()
+    return templates.TemplateResponse(
+        request, "_cards.html",
+        {
+            "today_items": today_items,
+            "meta": meta,
+            "latest_version_of": latest_version,
+            "url_prefix": "/stocks",
         },
     )
 
