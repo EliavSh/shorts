@@ -170,12 +170,25 @@ def _emit_script(client, model: str, system_prompt: str, user_message: str) -> S
     }
     response = client.messages.create(
         model=model,
-        max_tokens=2048,
+        # `beats` is the LAST field in the Script schema, so a tight ceiling
+        # truncates the script's actual content first and the partial-JSON
+        # parser hands back a beats-less dict. Give ample headroom — output
+        # tokens are billed only for what's generated, so a high cap is free
+        # unless used.
+        max_tokens=8192,
         system=system_prompt,
         tools=[tool],
         tool_choice={"type": "tool", "name": "emit_script"},
         messages=[{"role": "user", "content": user_message}],
     )
+
+    # A max_tokens cutoff yields a silently-truncated tool input (e.g. missing
+    # `beats`) that fails validation with a cryptic error — surface it plainly.
+    if response.stop_reason == "max_tokens":
+        raise RuntimeError(
+            "Claude hit max_tokens before finishing the script (output truncated). "
+            "Increase max_tokens or shorten the requested length."
+        )
 
     for block in response.content:
         if getattr(block, "type", None) == "tool_use" and block.name == "emit_script":
