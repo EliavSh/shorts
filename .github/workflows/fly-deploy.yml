@@ -28,6 +28,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: superfly/flyctl-actions/setup-flyctl@master
-      - run: flyctl deploy --remote-only
+      # Retry once: the remote builder occasionally times out tearing itself
+      # down ("error releasing builder: deadline_exceeded") AFTER the image is
+      # built — a second run reuses cached layers and just re-attempts the
+      # release. --wait-timeout gives the machine update ample time.
+      - name: Deploy
+        run: |
+          flyctl deploy --remote-only --wait-timeout 600 \
+            || flyctl deploy --remote-only --wait-timeout 600
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

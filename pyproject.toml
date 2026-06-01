@@ -26,7 +26,9 @@ dependencies = [
     "anthropic>=0.39",
     "elevenlabs>=1.7",
     "edge-tts>=7.0",
-    "openai-whisper>=20231117",
+    # We use faster-whisper (CTranslate2) for word-timing alignment. openai-whisper
+    # is intentionally NOT a dependency — it drags in PyTorch (~1.5GB), nothing
+    # imports it, and it bloated the image enough to time out Fly's remote builder.
     "faster-whisper>=1.0.3",
 
     # google api / publish
@@ -52,7 +54,6 @@ dependencies = [
 
     # audio
     "pydub>=0.25.1",
-    "librosa>=0.10.2",
 
     # robustness
     "tenacity>=9.0",
