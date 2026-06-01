@@ -16,13 +16,15 @@ name: Stocks auto-pilot tick
 
 on:
   schedule:
-    # Three fresh clips a day. Times are UTC (GitHub cron has no timezone).
-    # Israel is UTC+2 (winter) / UTC+3 (summer), so these land ~morning / noon /
-    # evening Israel time. Each run replans from the latest market, then renders
-    # ONE clip; the dashboard's daily target (default 3) caps the day.
-    - cron: "0 6 * * *"    # ~08:00–09:00 Israel — morning
-    - cron: "0 10 * * *"   # ~12:00–13:00 Israel — noon
-    - cron: "0 16 * * *"   # ~18:00–19:00 Israel — evening
+    # Five fresh clips a day. Times are UTC (GitHub cron has no timezone). Each
+    # run replans from the latest market, then renders ONE clip; the dashboard's
+    # daily target caps the day. KEEP THESE IN SYNC with SCHEDULE_UTC_HOURS in
+    # src/shorts/pipelines/stocks/schedule.py (used for the dashboard countdown).
+    - cron: "0 6 * * *"    # ~08:00–09:00 Israel
+    - cron: "0 9 * * *"    # ~11:00–12:00 Israel
+    - cron: "0 12 * * *"   # ~14:00–15:00 Israel
+    - cron: "0 15 * * *"   # ~17:00–18:00 Israel
+    - cron: "0 18 * * *"   # ~20:00–21:00 Israel
   workflow_dispatch: {}
 
 concurrency:
@@ -55,3 +57,27 @@ jobs:
             2*) echo "tick enqueued";;
             *) echo "tick failed (HTTP $code)"; exit 1;;
           esac
+
+      - name: Keep machine awake until the render finishes
+        env:
+          AUTOPILOT_URL: ${{ secrets.AUTOPILOT_URL }}
+        run: |
+          # Fly stops an idle machine when its proxy sees no active connections —
+          # it does NOT watch CPU, so a background render gets killed mid-encode.
+          # Poll the jobs endpoint every 15s (generating proxy traffic) until no
+          # render is running, so the cron render can't be cut off. Bounded at
+          # ~8 min so a hung render can't pin the machine forever.
+          base="${AUTOPILOT_URL%/stocks/autopilot/tick}"
+          jobs_url="$base/stocks/jobs"
+          # Give the background job a moment to actually start.
+          sleep 20
+          for i in $(seq 1 32); do
+            resp=$(curl -sS --max-time 20 "$jobs_url" || true)
+            if ! echo "$resp" | grep -q '"running"'; then
+              echo "no running render after ~$((20 + i*15))s — done."
+              exit 0
+            fi
+            echo "render still running (~$((20 + i*15))s) — holding machine awake…"
+            sleep 15
+          done
+          echo "keepalive window elapsed (~8 min) — leaving it to finish."

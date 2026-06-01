@@ -143,7 +143,7 @@ def _collect_items() -> tuple[list, list, dict[str, dict]]:
 
 @router.get("/", response_class=HTMLResponse)
 def index(request: Request) -> Any:
-    from .schedule import next_runs
+    from .schedule import SCHEDULE_UTC_HOURS, next_runs
 
     today_items, earlier_items, meta = _collect_items()
 
@@ -155,18 +155,22 @@ def index(request: Request) -> Any:
         pass
 
     jobs = job_mod.list_jobs(PIPELINE, limit=20)
+    daily_target = cfg.daily_target if cfg else 3
+    # Show one countdown per clip we'll actually produce today (== daily_target,
+    # bounded by the number of scheduled slots that exist).
+    n_slots = max(1, min(daily_target, len(SCHEDULE_UTC_HOURS)))
     return templates.TemplateResponse(
         request, "index.html",
         {
             "today_items": today_items,
             "earlier_items": earlier_items,
             "meta": meta,
-            "daily_target": cfg.daily_target if cfg else 3,
+            "daily_target": daily_target,
             "latest_version_of": latest_version,
             "url_prefix": "/stocks",
             "jobs": jobs,
             "render_kinds": sorted(RENDER_KINDS),
-            "next_runs": [d.isoformat() for d in next_runs(3)],
+            "next_runs": [d.isoformat() for d in next_runs(n_slots)],
         },
     )
 

@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     edge_voice_en: str = "en-US-AndrewNeural"
     elevenlabs_api_key: str = ""
     elevenlabs_voice_id_en: str = ""
+    # faster-whisper model used only to recover word timings for caption sync.
+    # Alignment discards Whisper's text (the script is ground truth), so accuracy
+    # barely matters — a smaller model renders much faster on CPU. tiny < base <
+    # small < medium (speed ↓, precision ↑). 'base' is the sweet spot on a
+    # shared-cpu machine; drop to 'tiny' for max speed.
+    whisper_model: str = "base"
 
     # Market data
     finnhub_api_key: str = ""

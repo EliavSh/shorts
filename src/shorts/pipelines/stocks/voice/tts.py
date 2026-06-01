@@ -99,7 +99,9 @@ def _get_fw_model():
     global _FW_MODEL
     if _FW_MODEL is None:
         from faster_whisper import WhisperModel
-        _FW_MODEL = WhisperModel("small", device="cpu", compute_type="int8")
+        name = get_settings().whisper_model or "base"
+        log.info("loading faster-whisper model '%s' (int8/cpu)", name)
+        _FW_MODEL = WhisperModel(name, device="cpu", compute_type="int8")
     return _FW_MODEL
 
 

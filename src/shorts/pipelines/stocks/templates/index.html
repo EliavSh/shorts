@@ -338,9 +338,10 @@
     }
     function schedule(fast) {
       clearTimeout(pollTimer);
-      // Poll briskly while a render runs; slowly otherwise so an autopilot tick
-      // still shows up live. Pause entirely when the tab is hidden.
-      const delay = document.hidden ? 30000 : (fast ? 3000 : 12000);
+      // While a render is running, keep polling briskly EVEN IF the tab is
+      // hidden — these requests keep the Fly machine awake so the render can't
+      // be cut off mid-encode. When idle, back off (and further when hidden).
+      const delay = fast ? 3000 : (document.hidden ? 30000 : 12000);
       pollTimer = setTimeout(poll, delay);
     }
     document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
