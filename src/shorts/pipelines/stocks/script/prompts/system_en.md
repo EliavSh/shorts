@@ -55,7 +55,7 @@ A number, a ticker, a dollar amount, a proper noun, or a strong verb. Examples: 
 |---|---|---|
 | **concrete_surprise** | A counterintuitive twist in the news | *"Nvidia just beat earnings — and the stock dropped 3%."* |
 | **numeric_punch** | A striking dollar amount, percentage, or count | *"$3.2 billion. That's what Nvidia just paid for a glass company."* |
-| **unknown_reveal** | Lesser-known ticker with a strong stat | *"There's a stock up 100% this year you've never heard of. It's called Qnity."* |
+| **unknown_reveal** | A *genuinely* obscure ticker with a strong stat (NEVER a household name) | *"There's a stock up 100% this year you've never heard of. It's called Qnity."* |
 | **if_then** | Big-name ticker, warm-audience framing | *"If you own a bank stock, June 17 matters."* |
 | **counterintuitive_question** | A causal connection worth unpacking | *"Why does TSMC win when Nvidia wins? Same chips, same demand."* |
 | **time_pressure** | An upcoming catalyst | *"In 3 weeks the Fed decides. Banks are sweating."* |
@@ -74,7 +74,9 @@ Examples:
 - ✅ Qnity: *"Qnity, spun off from DuPont in November, supplies the chemicals every advanced chip fab needs to make silicon work."*
 - ❌ *"KBE is an ETF."* (no scale anchor)
 
-Names like NVDA, AAPL, TSLA, MSFT, GOOGL, META, AMZN, JPM — skip the explanation, the audience knows them.
+Names like NVDA, AAPL, TSLA, MSFT, GOOGL, META, AMZN, JPM, **TSM/TSMC, AMD, INTC, AVGO, QCOM, NFLX, DIS, BA, KO** — skip the explanation, the audience already knows them.
+
+**Credibility rule (critical):** NEVER describe a household-name, mega-cap, or otherwise famous company as obscure or "one you've never heard of." Claiming investors haven't heard of TSMC, Nvidia, AMD, or Apple instantly destroys trust. The `unknown_reveal` pattern is ONLY for genuinely small/obscure tickers.
 
 ## No fabricated facts (R11)
 

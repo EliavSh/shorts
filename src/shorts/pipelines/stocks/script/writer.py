@@ -173,27 +173,31 @@ def write_script(ctx: TopicContext, *, model: str | None = None,
         except Exception as e:
             log.warning("corrective rewrite failed, keeping original: %s", e)
 
-    # Self-consistency: does the hook's promise actually get delivered by the
-    # body? (e.g. "12 companies touch the chip" then names 4.) One corrective
-    # rewrite if not. Best-effort.
+    # Punch up the opening line FIRST — the first ~1.5s decide a Short.
+    _strengthen_hook(script, client=client, model=s.claude_director_model)
+
+    # Inspector runs LAST (so it judges the final, hook-strengthened script):
+    # catches a hook that over-promises vs the body ("12 companies" then names 4)
+    # AND clearly false/misleading claims (e.g. calling a famous stock one
+    # "you've never heard of"). One corrective rewrite. Best-effort.
     issues = _inspect_consistency(script, client=client, model=s.claude_director_model)
     if issues:
-        log.warning("consistency inspector flagged %s — one corrective rewrite", issues)
+        log.warning("inspector flagged %s — one corrective rewrite", issues)
         note = (
-            "IMPORTANT: the hook makes a promise the body doesn't deliver. Make "
-            "the script internally consistent — either deliver exactly what the "
-            "hook sets up, or change the hook to match what the body actually "
-            "covers. Fix these: " + "; ".join(issues)
+            "IMPORTANT: a previous version had these credibility problems — fix "
+            "ALL of them. Either (a) the hook promises something the body doesn't "
+            "deliver — make them consistent, or (b) a claim is factually wrong or "
+            "misleading (e.g. calling a well-known company obscure). NEVER describe "
+            "a famous/mega-cap stock (NVDA, AAPL, TSM/TSMC, AMD, MSFT, …) as one "
+            "investors 'never heard of'. Problems: " + "; ".join(issues)
         )
         combined = f"{guidance}\n\n{note}" if guidance else note
         try:
             script = _emit_script(client, chosen_model, system_prompt,
                                   _topic_to_user_message(ctx, format_hint, combined))
+            _strengthen_hook(script, client=client, model=s.claude_director_model)
         except Exception as e:
-            log.warning("consistency rewrite failed, keeping original: %s", e)
-
-    # Punch up the opening line — the first ~1.5s decide a Short. Best-effort.
-    _strengthen_hook(script, client=client, model=s.claude_director_model)
+            log.warning("inspector rewrite failed, keeping original: %s", e)
     return script
 
 
@@ -284,8 +288,10 @@ def _strengthen_hook(script: Script, *, client, model: str) -> None:
     prompt = (
         "You are punching up the OPENING line of a vertical finance Short. Rewrite "
         "the hook so the first 1.5 seconds grab attention: at most 14 words, "
-        "concrete, curiosity- or number-led, no hashtags, no emoji, and keep the "
-        "same topic and facts. Return ONLY the rewritten line, nothing else.\n\n"
+        "concrete, curiosity- or number-led, no hashtags, no emoji. Keep the same "
+        "topic and facts — do NOT introduce any claim that wasn't already there, "
+        "and NEVER call a well-known company (e.g. TSMC, Nvidia, AMD, Apple) one "
+        "viewers 'never heard of'. Return ONLY the rewritten line, nothing else.\n\n"
         f"Hook: {original}"
     )
     try:
@@ -305,9 +311,11 @@ def _strengthen_hook(script: Script, *, client, model: str) -> None:
 # --- Self-consistency inspector ---------------------------------------------
 
 def _inspect_consistency(script: Script, *, client, model: str) -> list[str]:
-    """Cheap critic pass: does the hook's promise actually get delivered by the
-    body? Returns short issue strings (empty list = consistent). Best-effort —
-    any error (or unparseable reply) returns [] so a render is never blocked."""
+    """Cheap critic pass over the finished script. Flags two classes of
+    credibility-killers: (1) the hook promises something the body never delivers,
+    and (2) a clearly false or misleading factual claim. Returns short issue
+    strings (empty = clean). Best-effort — any error returns [] so a render is
+    never blocked."""
     beats = getattr(script, "beats", []) or []
     if len(beats) < 3:
         return []
@@ -316,14 +324,18 @@ def _inspect_consistency(script: Script, *, client, model: str) -> list[str]:
         for b in beats
     )
     prompt = (
-        "You are a sharp script editor checking a short finance video for ONE "
-        "thing: internal consistency between the hook (first beat) and the rest. "
-        "Flag a problem ONLY when the hook makes a specific promise the body fails "
-        "to deliver — e.g. it states a count or list size the body doesn't match "
-        "(\"12 companies touch the chip\" but only 4 are named), teases a subject "
-        "that's never covered, or poses a question with no payoff. Do NOT flag "
-        "style, energy, length, or anything else. If it's consistent, return an "
-        "empty list.\n\n"
+        "You are a sharp finance editor doing a final credibility check on a short "
+        "video script. Flag ONLY high-confidence, clear problems in these two "
+        "categories (ignore style, energy, and length):\n"
+        "1. PROMISE NOT KEPT — the hook sets up something the body doesn't deliver: "
+        "a count/list size that doesn't match (\"12 companies touch the chip\" but "
+        "only 4 are named), a teased subject never covered, a question with no payoff.\n"
+        "2. FALSE / MISLEADING CLAIM — something a knowledgeable investor would know "
+        "is wrong. ESPECIALLY: calling a famous, large, or household-name company "
+        "obscure or one viewers 'have never heard of' (e.g. TSMC/TSM, Nvidia, AMD, "
+        "Apple, Intel are all extremely well known — never call them unknown). Also "
+        "obvious factual howlers or self-contradictions.\n\n"
+        "If the script is clean, return an empty list.\n"
         "Respond with ONLY JSON: {\"issues\": [\"<short problem>\", ...]}\n\n"
         f"Script beats:\n{transcript}"
     )

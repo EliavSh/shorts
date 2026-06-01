@@ -123,7 +123,8 @@ def render_compare_card(*, brand: Brand, primary, secondary) -> Image.Image:
     _row(primary, top)
     dy = top + row_h + gap // 2
     draw.line((_PAD_X, dy, w - _PAD_X, dy),
-              fill=hex_to_rgba(style.text_secondary, 0.25), width=2)
+              fill=_blend(style.background, style.text_secondary, 0.35, style.background_opacity),
+              width=2)
     _row(secondary, top + row_h + gap)
     return img
 
@@ -133,6 +134,16 @@ def _label_daily_change(lang: str) -> str:
 
 
 # ── Text fitting + change badge helpers ──────────────────────────────────────
+
+def _blend(bg_hex: str, fg_hex: str, tint: float, out_opacity: float) -> tuple[int, int, int, int]:
+    """Opaque-ish RGBA of `fg` tinted `tint` over `bg`, at `out_opacity` alpha.
+    Used so overlay fills sit ON the card background instead of replacing it with
+    a transparent hole (PIL draws replace pixels, they don't composite)."""
+    bg = hex_to_rgba(bg_hex, 1.0)[:3]
+    fg = hex_to_rgba(fg_hex, 1.0)[:3]
+    rgb = tuple(int(b * (1 - tint) + f * tint) for b, f in zip(bg, fg))
+    return (*rgb, int(max(0.0, min(1.0, out_opacity)) * 255))
+
 
 def _change_badge_size(draw, brand: Brand, change_pct: float, *, font_size: int) -> tuple[int, int]:
     f = ImageFont.truetype(str(brand.font_path), size=font_size)
@@ -153,8 +164,14 @@ def _draw_change_badge(draw, brand: Brand, x: int, y: int, change_pct: float,
     arrow_w, gap, pad_h, pad_v, tri_h = 22, 12, 18, 11, int(font_size * 0.55)
     pill_w = int(pad_h + arrow_w + gap + tw + pad_h)
     pill_h = int(max(font_size, tri_h) + 2 * pad_v)
+    # Use an OPAQUE accent-tinted fill (blended over the card colour) at the
+    # card's own alpha. A translucent fill here would REPLACE the card pixels
+    # (PIL doesn't composite draws), punching a see-through hole so the % looks
+    # like it floats over the video — render it on the same card background.
+    style = brand.ticker_card
     draw.rounded_rectangle((x, y, x + pill_w, y + pill_h), radius=pill_h // 2,
-                           fill=hex_to_rgba(accent, 0.16))
+                           fill=_blend(style.background, accent, 0.18,
+                                       style.background_opacity))
     ax = x + pad_h
     ay_top = y + (pill_h - tri_h) // 2
     ay_bot = ay_top + tri_h
