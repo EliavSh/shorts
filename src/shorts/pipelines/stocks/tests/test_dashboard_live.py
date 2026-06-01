@@ -11,22 +11,22 @@ from shorts.pipelines.stocks.schedule import SCHEDULE_UTC_HOURS, next_runs
 # ── Part 1: schedule.next_runs ─────────────────────────────────────────────────
 
 def test_next_runs_rolls_over_day() -> None:
-    now = datetime(2026, 6, 1, 12, 5, tzinfo=timezone.utc)  # just after the 12:00 slot
+    now = datetime(2026, 6, 1, 13, 5, tzinfo=timezone.utc)  # just after the 12:00 slot
     r = next_runs(3, now=now)
-    assert [(d.day, d.hour) for d in r] == [(1, 15), (1, 18), (2, 6)]
+    assert [(d.day, d.hour) for d in r] == [(1, 16), (1, 20), (2, 0)]
     assert all(r[i] < r[i + 1] for i in range(len(r) - 1))
     assert all(d.tzinfo is not None for d in r)
 
 
 def test_next_runs_before_first_slot() -> None:
-    now = datetime(2026, 6, 1, 3, 0, tzinfo=timezone.utc)
-    r = next_runs(5, now=now)
-    assert [(d.day, d.hour) for d in r] == [(1, 6), (1, 9), (1, 12), (1, 15), (1, 18)]
+    now = datetime(2026, 6, 1, 23, 30, tzinfo=timezone.utc)
+    r = next_runs(2, now=now)
+    assert [(d.day, d.hour) for d in r] == [(2, 0), (2, 4)]
 
 
 def test_schedule_hours_match_workflow() -> None:
     # Guards against silent drift from the documented cron in autopilot.yml.
-    assert SCHEDULE_UTC_HOURS == (6, 9, 12, 15, 18)
+    assert SCHEDULE_UTC_HOURS == (0, 4, 8, 12, 16, 20)
 
 
 # ── Part 2: per-stage progress in the job watcher ──────────────────────────────

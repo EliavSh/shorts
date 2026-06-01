@@ -16,15 +16,11 @@ name: Stocks auto-pilot tick
 
 on:
   schedule:
-    # Five fresh clips a day. Times are UTC (GitHub cron has no timezone). Each
-    # run replans from the latest market, then renders ONE clip; the dashboard's
-    # daily target caps the day. KEEP THESE IN SYNC with SCHEDULE_UTC_HOURS in
-    # src/shorts/pipelines/stocks/schedule.py (used for the dashboard countdown).
-    - cron: "0 6 * * *"    # ~08:00–09:00 Israel
-    - cron: "0 9 * * *"    # ~11:00–12:00 Israel
-    - cron: "0 12 * * *"   # ~14:00–15:00 Israel
-    - cron: "0 15 * * *"   # ~17:00–18:00 Israel
-    - cron: "0 18 * * *"   # ~20:00–21:00 Israel
+    # Base cadence: every 4 hours, UTC (GitHub cron has no timezone). The job
+    # then sleeps a random 0–60 min (see the Jitter step) so consecutive renders
+    # actually land 3–5 hours apart, not on the clock. ~6 clips/day. KEEP THESE
+    # IN SYNC with SCHEDULE_UTC_HOURS in src/shorts/pipelines/stocks/schedule.py.
+    - cron: "0 0,4,8,12,16,20 * * *"
   workflow_dispatch: {}
 
 concurrency:
@@ -35,6 +31,16 @@ jobs:
   tick:
     runs-on: ubuntu-latest
     steps:
+      - name: Jitter (spread renders 3–5h apart)
+        # Base cadence is every 4h; sleep a random 0–60 min so the gap between
+        # consecutive renders varies 3–5h (4h ± up to 1h) instead of firing on
+        # the clock. Skipped for manual workflow_dispatch runs (fire immediately).
+        if: github.event_name == 'schedule'
+        run: |
+          mins=$(( RANDOM % 61 ))
+          echo "jittering ${mins} min before the tick…"
+          sleep $(( mins * 60 ))
+
       - name: POST autopilot tick
         env:
           AUTOPILOT_URL: ${{ secrets.AUTOPILOT_URL }}

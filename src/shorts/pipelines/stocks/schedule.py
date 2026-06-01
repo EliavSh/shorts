@@ -10,11 +10,11 @@ from __future__ import annotations
 
 from datetime import datetime, time, timedelta, timezone
 
-# Mirror of the cron hours in .github/workflows/autopilot.yml (all UTC). One
-# render fires per slot, so the number of slots = max clips actually produced per
-# day. Keep this in sync with both the workflow cron AND the daily_target the
-# planner caps at (5 evenly-spaced daytime-UTC slots → up to 5 clips/day).
-SCHEDULE_UTC_HOURS: tuple[int, ...] = (6, 9, 12, 15, 18)
+# Mirror of the cron hours in .github/workflows/autopilot.yml (all UTC). The
+# workflow adds a random 0–60 min jitter, so the real render times drift up to an
+# hour past these — the dashboard countdown is therefore approximate. One render
+# per slot → up to 6 clips/day; keep daily_target >= 6 so the cap doesn't throttle.
+SCHEDULE_UTC_HOURS: tuple[int, ...] = (0, 4, 8, 12, 16, 20)
 
 
 def next_runs(n: int = 3, *, now: datetime | None = None) -> list[datetime]:
