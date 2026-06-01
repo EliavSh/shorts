@@ -10,7 +10,7 @@ from pathlib import Path
 
 from shorts.config import pipeline_data_dir
 
-from .models import DebtFile, OrchestrationConfig, Plan
+from .models import DebtFile, IdeaFile, OrchestrationConfig, Plan
 
 _PIPELINE = "stocks"
 
@@ -55,6 +55,18 @@ def load_debt() -> DebtFile:
 def save_debt(debt: DebtFile) -> None:
     debt.updated_at = datetime.now().isoformat(timespec="seconds")
     _write(_path("debt.json"), debt)
+
+
+# ── Idea backlog ────────────────────────────────────────────────────────────
+
+def load_ideas() -> IdeaFile:
+    data = _read(_path("ideas.json"))
+    return IdeaFile.model_validate(data) if data else IdeaFile()
+
+
+def save_ideas(ideas: IdeaFile) -> None:
+    ideas.updated_at = datetime.now().isoformat(timespec="seconds")
+    _write(_path("ideas.json"), ideas)
 
 
 # ── Orchestration config ────────────────────────────────────────────────────

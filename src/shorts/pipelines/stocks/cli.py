@@ -361,6 +361,47 @@ def regen_cmd(slug: str, lang: str, note: str) -> None:
     console.print(f"[green]Done.[/green] New version at {result.mp4_path}")
 
 
+@cli.command("render-idea")
+@click.argument("idea_id")
+@click.option("--lang", default="en", type=click.Choice(["en"]))
+def render_idea_cmd(idea_id: str, lang: str) -> None:
+    """Render one evergreen backlog idea on demand → stage it for review.
+
+    Builds a prompt-only PlannedVideo (no tickers; the writer picks an explainer
+    format), renders it, and flips the idea to `done` on success.
+    """
+    from datetime import date
+
+    from .planner import store as plan_store
+    from .planner.models import IdeaItem, PlannedVideo, TopicSeed
+    from .pipeline import render_planned_item
+
+    ideas = plan_store.load_ideas()
+    idea: IdeaItem | None = next((i for i in ideas.items if i.id == idea_id), None)
+    if idea is None:
+        console.print(f"[red]Idea {idea_id} not found.[/red]")
+        raise SystemExit(1)
+
+    # Evergreen cue so the writer treats it as a concept explainer, not breaking news.
+    theme = f"Educational explainer (evergreen, not tied to today's news): {idea.prompt}"
+    item = PlannedVideo(
+        scheduled_for=date.today(), status="planned", format="evergreen",
+        topic_seed=TopicSeed(tickers=[], theme=theme),
+        title_hint=idea.prompt, rationale=f"Evergreen idea: {idea.prompt[:80]}",
+        source="idea",
+    )
+    console.print(f"[bold]Rendering idea[/bold] {idea_id}: {idea.prompt}")
+    result = render_planned_item(item, lang=lang)
+    if result is None:
+        console.print("[red]Idea render failed — could not build a topic context.[/red]")
+        raise SystemExit(1)
+
+    idea.status = "done"
+    idea.rendered_slug = result.slug
+    plan_store.save_ideas(ideas)
+    console.print(f"[green]Done.[/green] Staged {result.slug} at {result.mp4_path}")
+
+
 # Sub-command stubs registered now so the surface is stable across phases.
 
 @cli.command("run")

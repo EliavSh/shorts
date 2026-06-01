@@ -346,7 +346,12 @@ def render_planned_item(item, *, lang: str = "en") -> RunResult | None:
     set_current_video(slug)
     log.info("[%s] planned render: format=%s tickers=%s", slug, item.format, seed.tickers)
 
-    script = write_script(ctx, format_hint=item.format, length_band=tuple(item.length_band))
+    # Evergreen ideas are prompt-only: let the writer choose the best explainer
+    # format + length rather than forcing the planner's ticker-centric default.
+    if getattr(item, "source", "") == "idea":
+        script = write_script(ctx, format_hint=None, length_band=None)
+    else:
+        script = write_script(ctx, format_hint=item.format, length_band=tuple(item.length_band))
     log.info("[%s] script written: %d beats, %d words, target=%ss",
              slug, len(script.beats), len(script.narration_text().split()),
              getattr(script, "target_seconds", "?"))

@@ -14,8 +14,18 @@ from pydantic import BaseModel, Field
 
 
 PlanStatus = Literal["planned", "rendering", "rendered", "skipped"]
-PlanSource = Literal["planner", "debt", "series", "earnings"]
+PlanSource = Literal["planner", "debt", "series", "earnings", "idea"]
 CommitmentStatus = Literal["open", "scheduled", "fulfilled"]
+IdeaStatus = Literal["open", "done"]
+
+# Maps the internal plan `source` to the editorial content lane shown in the UI.
+CONTENT_KIND_BY_SOURCE: dict[str, str] = {
+    "planner": "news",
+    "idea": "evergreen",
+    "series": "series",
+    "earnings": "earnings",
+    "debt": "commitment",
+}
 
 
 def _new_id() -> str:
@@ -47,6 +57,12 @@ class PlannedVideo(BaseModel):
     slug: str | None = None  # set once rendered
     commitment_id: str | None = None  # set when this fulfils a commitment
     created_at: str = Field(default_factory=_now)
+
+    @property
+    def content_kind(self) -> str:
+        """Editorial lane this item belongs to (news / evergreen / series /
+        earnings / commitment) — derived from `source`, no stored field."""
+        return CONTENT_KIND_BY_SOURCE.get(self.source, "news")
 
 
 class Commitment(BaseModel):
@@ -114,3 +130,21 @@ class DebtFile(BaseModel):
 
     def open(self) -> list[Commitment]:
         return [c for c in self.commitments if c.status == "open"]
+
+
+class IdeaItem(BaseModel):
+    """A user-written evergreen topic prompt, parked until fired on demand."""
+
+    id: str = Field(default_factory=_new_id)
+    prompt: str
+    status: IdeaStatus = "open"
+    created_at: str = Field(default_factory=_now)
+    rendered_slug: str | None = None  # slug of the clip this idea produced
+
+
+class IdeaFile(BaseModel):
+    items: list[IdeaItem] = Field(default_factory=list)
+    updated_at: str = Field(default_factory=_now)
+
+    def open(self) -> list[IdeaItem]:
+        return [i for i in self.items if i.status == "open"]

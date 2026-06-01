@@ -27,6 +27,21 @@
     .src-earnings { background:#3a2a00; color:#f0b400; }
     .src-series { background:#1a2f3a; color:#5bc8f5; }
     .src-planner { background:#16241c; color:#3fb950; }
+    /* Editorial content lanes (derived from source) */
+    .kind-news { background:#16241c; color:#3fb950; }
+    .kind-evergreen { background:#2a1f3a; color:#c08af0; }
+    .kind-series { background:#1a2f3a; color:#5bc8f5; }
+    .kind-earnings { background:#3a2a00; color:#f0b400; }
+    .kind-commitment { background:#3a1d1d; color:#f08a8a; }
+    .mix { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:0 0 16px; }
+    .mix .lbl { color:#7d8590; font-size:13px; font-weight:600; }
+    .idea-row { display:flex; gap:10px; align-items:center; border-top:1px solid #30363d; padding:9px 0; }
+    .idea-row .txt { flex:1; }
+    .idea-row.done { opacity:.5; }
+    .idea-add { display:flex; gap:8px; margin-bottom:6px; }
+    .idea-add input { flex:1; padding:9px 12px; border-radius:8px; border:1px solid #30363d;
+        background:#0d1117; color:#e6edf3; font:inherit; }
+    button.go { background:#22C55E; border-color:#22C55E; color:#000; }
     .st-skipped { opacity:.45; }
     .st-rendered { border-left:3px solid #2ea043; }
     .st-rendering { border-left:3px solid #f0b400; }
@@ -64,6 +79,48 @@
       <span class="muted">Plan generated {{ plan.generated_at }} • auto-pilot renders top-down.</span>
     </div>
 
+    {% set kind_order = ['news', 'evergreen', 'series', 'earnings', 'commitment'] %}
+    {% if mix %}
+      <div class="mix">
+        <span class="lbl">Coming up:</span>
+        {% for k in kind_order if mix.get(k) %}
+          <span class="badge kind-{{ k }}">{{ mix[k] }} {{ k }}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="card">
+      <h2 style="margin-top:0">💡 Idea backlog</h2>
+      <div class="muted" style="margin-bottom:10px">Evergreen prompts you can fire on demand —
+        not tied to today's news. The writer picks the best explainer format.</div>
+      <form class="idea-add" method="post" action="/stocks/plan/ideas/add">
+        <input type="text" name="prompt" placeholder="e.g. Explain the semiconductor supply chain" />
+        <button type="submit">+ Add idea</button>
+      </form>
+      {% set open_ideas = ideas|selectattr('status','equalto','open')|list %}
+      {% set done_ideas = ideas|selectattr('status','equalto','done')|list %}
+      {% if not ideas %}
+        <div class="muted" style="margin-top:8px">No ideas yet. Add evergreen explainers to build out your library.</div>
+      {% endif %}
+      {% for i in open_ideas %}
+        <div class="idea-row">
+          <span class="txt">{{ i.prompt }}</span>
+          <form class="inline" method="post" action="/stocks/plan/ideas/{{ i.id }}/generate">
+            <button class="go" type="submit" title="Render this idea now">▶ Generate</button></form>
+          <form class="inline" method="post" action="/stocks/plan/ideas/{{ i.id }}/delete">
+            <button class="ghost" type="submit" title="Remove">✕</button></form>
+        </div>
+      {% endfor %}
+      {% for i in done_ideas %}
+        <div class="idea-row done">
+          <span class="txt">{{ i.prompt }}</span>
+          {% if i.rendered_slug %}<a href="/stocks/">✓ {{ i.rendered_slug }}</a>{% else %}<span class="muted">done</span>{% endif %}
+          <form class="inline" method="post" action="/stocks/plan/ideas/{{ i.id }}/delete">
+            <button class="ghost" type="submit" title="Remove">✕</button></form>
+        </div>
+      {% endfor %}
+    </div>
+
     <h2>Upcoming queue ({{ plan.items|length }})</h2>
     {% if not plan.items %}
       <div class="card muted">No plan yet. Click <b>Regenerate plan</b> to build one from live market data, debt, and your tuning.</div>
@@ -74,7 +131,7 @@
             <div style="flex:1">
               <div style="display:flex; gap:10px; align-items:center; margin-bottom:6px">
                 <span class="when">{{ it.scheduled_for.strftime('%a %b %d') }}</span>
-                <span class="badge src-{{ it.source }}">{{ it.source }}</span>
+                <span class="badge kind-{{ it.content_kind }}">{{ it.content_kind }}</span>
                 <h3>{{ it.format }}</h3>
                 {% if it.pinned %}<span class="pill">📌 pinned</span>{% endif %}
                 <span class="pill">{{ it.length_band[0] }}-{{ it.length_band[1] }}s</span>

@@ -31,7 +31,7 @@ _store = ReviewStore(PIPELINE)
 
 # Job kinds that produce a clip (vs. publish). The dashboard shows a live
 # progress placeholder for these while they run.
-RENDER_KINDS = {"daily-run", "render-fixture", "autopilot-tick", "regen"}
+RENDER_KINDS = {"daily-run", "render-fixture", "autopilot-tick", "regen", "render-idea"}
 
 # Ordered (log-substring → friendly label) pairs. The job watcher streams the
 # render subprocess's stdout and advances the stage as these markers appear, so
@@ -87,6 +87,14 @@ def _trigger_regen(slug: str) -> None:
     job_mod.start(
         PIPELINE, "regen", slug,
         [sys.executable, "-m", "shorts.cli", "stocks", "regen", slug],
+        cwd=str(REPO_ROOT), stage_patterns=STAGE_PATTERNS,
+    )
+
+
+def _trigger_render_idea(idea_id: str, label: str) -> None:
+    job_mod.start(
+        PIPELINE, "render-idea", label[:80] or idea_id,
+        [sys.executable, "-m", "shorts.cli", "stocks", "render-idea", idea_id],
         cwd=str(REPO_ROOT), stage_patterns=STAGE_PATTERNS,
     )
 
@@ -320,12 +328,18 @@ def feedback_submit(text: str = Form(...)) -> RedirectResponse:
 
 @router.get("/plan", response_class=HTMLResponse)
 def plan_page(request: Request) -> Any:
+    from collections import Counter
+
     from .planner import store as plan_store
 
     plan = plan_store.load_plan()
     debt = plan_store.load_debt()
     cfg = plan_store.load_config()
+    ideas = plan_store.load_ideas()
     jobs = job_mod.list_jobs(PIPELINE, limit=10)
+
+    # Editorial mix: count upcoming (not-yet-rendered) items by content lane.
+    mix = Counter(it.content_kind for it in plan.items if it.status in ("planned", "rendering"))
     return templates.TemplateResponse(
         request, "plan.html",
         {
@@ -334,9 +348,46 @@ def plan_page(request: Request) -> Any:
             "open_debt": debt.open(),
             "all_debt": debt.commitments,
             "series": cfg.active_series(),
+            "ideas": ideas.items,
+            "mix": dict(mix),
             "jobs": jobs,
         },
     )
+
+
+@router.post("/plan/ideas/add")
+def ideas_add(prompt: str = Form("")) -> RedirectResponse:
+    from .planner import store as plan_store
+    from .planner.models import IdeaItem
+
+    text = prompt.strip()
+    if text:
+        ideas = plan_store.load_ideas()
+        ideas.items.append(IdeaItem(prompt=text))
+        plan_store.save_ideas(ideas)
+    return RedirectResponse(url="/stocks/plan", status_code=303)
+
+
+@router.post("/plan/ideas/{idea_id}/generate")
+def ideas_generate(idea_id: str, background_tasks: BackgroundTasks) -> RedirectResponse:
+    from .planner import store as plan_store
+
+    ideas = plan_store.load_ideas()
+    idea = next((i for i in ideas.items if i.id == idea_id), None)
+    if idea is None:
+        raise HTTPException(404, "Idea not found")
+    background_tasks.add_task(_trigger_render_idea, idea_id, idea.prompt)
+    return RedirectResponse(url="/stocks/plan?rendering=1", status_code=303)
+
+
+@router.post("/plan/ideas/{idea_id}/delete")
+def ideas_delete(idea_id: str) -> RedirectResponse:
+    from .planner import store as plan_store
+
+    ideas = plan_store.load_ideas()
+    ideas.items = [i for i in ideas.items if i.id != idea_id]
+    plan_store.save_ideas(ideas)
+    return RedirectResponse(url="/stocks/plan", status_code=303)
 
 
 @router.post("/plan/regenerate")
