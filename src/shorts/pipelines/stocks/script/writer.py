@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -129,18 +130,46 @@ def write_script(ctx: TopicContext, *, model: str | None = None,
 
     client = make_anthropic()
     system_prompt = _load_system_prompt(ctx.lang, length_band)
-    user_message = _topic_to_user_message(ctx, format_hint, guidance)
     chosen_model = model or s.claude_model
 
     log.info("Calling Claude (model=%s, lang=%s, hint=%s)", chosen_model, ctx.lang, format_hint)
 
+    script = _emit_script(client, chosen_model, system_prompt,
+                          _topic_to_user_message(ctx, format_hint, guidance))
+
+    # Ground spoken figures against the live snapshot; one corrective rewrite if
+    # anything looks invented. Best-effort — a failed rewrite keeps the original.
+    flagged = _check_numbers(script, ctx)
+    if flagged:
+        log.warning("number-grounding flagged %s — one corrective rewrite", flagged)
+        note = (
+            "IMPORTANT: only cite figures that appear in the topic context JSON. "
+            "The following numbers don't match the data and look invented — remove "
+            "them or replace with the correct value from the context: "
+            + "; ".join(flagged)
+        )
+        combined = f"{guidance}\n\n{note}" if guidance else note
+        try:
+            script = _emit_script(client, chosen_model, system_prompt,
+                                  _topic_to_user_message(ctx, format_hint, combined))
+        except Exception as e:
+            log.warning("corrective rewrite failed, keeping original: %s", e)
+
+    # Punch up the opening line — the first ~1.5s decide a Short. Best-effort.
+    _strengthen_hook(script, client=client, model=s.claude_director_model)
+    return script
+
+
+def _emit_script(client, model: str, system_prompt: str, user_message: str) -> Script:
+    """One structured `emit_script` tool call → a validated, constraint-repaired
+    Script. Raises if the model returns no tool_use block."""
     tool = {
         "name": "emit_script",
         "description": "Emit the finished video script as structured JSON.",
         "input_schema": Script.model_json_schema(),
     }
     response = client.messages.create(
-        model=chosen_model,
+        model=model,
         max_tokens=2048,
         system=system_prompt,
         tools=[tool],
@@ -161,6 +190,123 @@ def write_script(ctx: TopicContext, *, model: str | None = None,
             return script
 
     raise RuntimeError(f"Claude did not emit a tool_use block. Stop reason: {response.stop_reason!r}")
+
+
+def _strengthen_hook(script: Script, *, client, model: str) -> None:
+    """Rewrite the hook beat into a punchier ≤~14-word opener via a cheap model.
+    Best-effort: any failure leaves the original hook untouched."""
+    if not script.beats:
+        return
+    idx = next((i for i, b in enumerate(script.beats) if b.role == "hook"), 0)
+    beat = script.beats[idx]
+    original = (beat.narration or "").strip()
+    if not original:
+        return
+    prompt = (
+        "You are punching up the OPENING line of a vertical finance Short. Rewrite "
+        "the hook so the first 1.5 seconds grab attention: at most 14 words, "
+        "concrete, curiosity- or number-led, no hashtags, no emoji, and keep the "
+        "same topic and facts. Return ONLY the rewritten line, nothing else.\n\n"
+        f"Hook: {original}"
+    )
+    try:
+        resp = client.messages.create(
+            model=model, max_tokens=80,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = "".join(getattr(b, "text", "") for b in resp.content
+                       if getattr(b, "type", None) == "text").strip().strip('"').strip()
+        if text and 2 <= len(text.split()) <= 18:
+            beat.narration = text
+            log.info("hook strengthened: %r -> %r", original, text)
+    except Exception as e:
+        log.debug("hook strengthen skipped: %s", e)
+
+
+# --- Number grounding -------------------------------------------------------
+
+_MAG = {"trillion": 1e12, "t": 1e12, "billion": 1e9, "bn": 1e9, "b": 1e9,
+        "million": 1e6, "m": 1e6, "thousand": 1e3, "k": 1e3}
+_TOKEN_RE = re.compile(
+    r"(?P<dollar>\$)?\s*(?P<num>\d[\d,]*(?:\.\d+)?)\s*"
+    r"(?P<unit>%|percent|trillion|billion|million|thousand|bn|[kmbt])?\b",
+    re.I,
+)
+
+
+def _classify(m: "re.Match[str]") -> tuple[str | None, float]:
+    raw = float(m.group("num").replace(",", ""))
+    unit = (m.group("unit") or "").lower()
+    if unit in ("%", "percent"):
+        return "pct", raw
+    if unit in _MAG:
+        return "big", raw * _MAG[unit]
+    if m.group("dollar"):
+        return "price", raw
+    return None, raw  # a bare number (year, count, …) — don't grade it
+
+
+def _collect_allowed(ctx: TopicContext) -> tuple[list[float], list[float], list[float]]:
+    """Allowed (prices, percents, big-magnitudes) from the live snapshots.
+    Empty lists disable a check, so thin/placeholder contexts never false-flag."""
+    prices: list[float] = []
+    pcts: list[float] = []
+    bigs: list[float] = []
+    for snap in ctx.candidates:
+        if snap.price:
+            prices.append(float(snap.price))
+        if snap.change_pct is not None:
+            pcts.append(abs(float(snap.change_pct)))
+        if snap.volume:
+            bigs.append(float(snap.volume))
+        if snap.market_cap:
+            bigs.append(float(snap.market_cap))
+        ohlc = snap.ohlc_30d or []
+        if ohlc:
+            highs = [c[1] for c in ohlc]
+            lows = [c[2] for c in ohlc]
+            closes = [c[3] for c in ohlc]
+            prices.extend(highs + lows + [closes[0], closes[-1]])
+            if closes[0]:
+                pcts.append(abs((closes[-1] - closes[0]) / closes[0] * 100))
+            hi, lo = max(highs), min(lows)
+            if hi:
+                pcts.append(abs((closes[-1] - hi) / hi * 100))
+            if lo:
+                pcts.append(abs((closes[-1] - lo) / lo * 100))
+    # Drop zeros/placeholders so a kind with no real data is simply not graded.
+    return ([p for p in prices if p > 0],
+            [p for p in pcts if p > 0.01],
+            [b for b in bigs if b > 0])
+
+
+def _matches(value: float, allowed: list[float], *, rel: float, absfloor: float = 0.0) -> bool:
+    return any(abs(value - a) <= max(absfloor, rel * abs(a)) for a in allowed)
+
+
+def _check_numbers(script: Script, ctx: TopicContext) -> list[str]:
+    """Return the spoken financial figures that match no snapshot value. Only
+    grades $/%/magnitude numbers; bare integers (years, counts) are ignored, and
+    a kind with no snapshot data is skipped entirely. Conservative by design."""
+    prices, pcts, bigs = _collect_allowed(ctx)
+    flagged: list[str] = []
+    for beat in script.beats:
+        for m in _TOKEN_RE.finditer(beat.narration or ""):
+            kind, value = _classify(m)
+            if kind is None:
+                continue
+            tok = m.group(0).strip()
+            if kind == "pct" and pcts and not _matches(value, pcts, rel=0.15, absfloor=0.5):
+                flagged.append(tok)
+            elif kind == "price" and prices and not _matches(value, prices, rel=0.08):
+                flagged.append(tok)
+            elif kind == "big" and bigs and not _matches(value, bigs, rel=0.10):
+                flagged.append(tok)
+    out: list[str] = []
+    for t in flagged:
+        if t not in out:
+            out.append(t)
+    return out[:6]
 
 
 def _repair_format_constraints(script: Script) -> None:

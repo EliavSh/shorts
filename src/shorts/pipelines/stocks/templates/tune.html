@@ -46,12 +46,21 @@
     <form method="post" action="/stocks/tune">
       <div class="card">
         <h2>Daily volume</h2>
-        <div class="muted" style="margin-bottom:14px">How many clips the auto-pilot stages each day for your review.</div>
-        <div class="field" style="margin-bottom:0">
+        <div class="muted" style="margin-bottom:14px">How many clips the auto-pilot produces each day.</div>
+        <div class="field">
           <label for="daily_target">Clips per day</label>
           <input id="daily_target" type="number" name="daily_target" min="1" max="14"
                  value="{{ cfg.daily_target }}" />
-          <div class="hint">Number of clips staged each day (1–14). Lower = cheaper.</div>
+          <div class="hint">Number of clips produced each day (1–14). Lower = cheaper.</div>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label style="display:flex; align-items:center; gap:10px; font-weight:600;">
+            <input type="checkbox" name="auto_publish" value="on" style="width:auto;"
+                   {% if cfg.auto_publish %}checked{% endif %} />
+            Auto-publish to YouTube (public)
+          </label>
+          <div class="hint">When on, each clip is uploaded <b>public</b> automatically — no
+            review step. Turn off to keep clips staged here for manual publishing.</div>
         </div>
       </div>
 

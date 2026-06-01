@@ -40,13 +40,47 @@ def _recent_renders(limit: int = 12) -> tuple[tuple[str, ...], tuple[str, ...]]:
 
 
 def _live_movers(n: int = 12) -> list[MoverLite]:
+    """Today's candidate names, blending price action with news relevance.
+
+    Each top-mover carries a `news_score` from how often it was mentioned in the
+    market news today; additionally, the most-talked-about tickers that aren't in
+    our static universe at all are pulled in (with a real quote) so a genuinely
+    news-hot story can become the clip even if it isn't a big % mover.
+    """
     try:
-        from ..data.market import top_movers
-        return [MoverLite(ticker=q.ticker, sector=q.sector, change_pct=q.change_pct)
-                for q in top_movers(n=n)]
+        from ..data.market import get_quote, top_movers
     except Exception as e:
-        log.warning("top_movers failed, planning without movers: %s", e)
+        log.warning("market import failed, planning without movers: %s", e)
         return []
+
+    try:
+        from ..data.trending import trending_tickers
+        trending = trending_tickers()
+    except Exception as e:
+        log.debug("trending_tickers failed: %s", e)
+        trending = {}
+
+    movers: list[MoverLite] = []
+    seen: set[str] = set()
+    try:
+        for q in top_movers(n=n):
+            sym = q.ticker.upper()
+            seen.add(sym)
+            movers.append(MoverLite(ticker=q.ticker, sector=q.sector,
+                                    change_pct=q.change_pct,
+                                    news_score=float(trending.get(sym, 0))))
+    except Exception as e:
+        log.warning("top_movers failed, planning from news only: %s", e)
+
+    # Pull in the hottest news names outside our universe (bounded yfinance cost).
+    extras = [t for t in trending if t.upper() not in seen][:4]
+    for sym in extras:
+        q = get_quote(sym)
+        if q is not None:
+            movers.append(MoverLite(ticker=q.ticker, sector=q.sector,
+                                    change_pct=q.change_pct,
+                                    news_score=float(trending.get(sym.upper(), 0))))
+    return movers
 
 
 def _live_earnings(days: int = 7) -> list[EarningsLite]:
@@ -149,9 +183,22 @@ def _generated_today(today: date) -> int:
     return n
 
 
+def _auto_publish(result, *, privacy: str) -> None:
+    """Upload a freshly-rendered clip to YouTube. Best-effort: a failure leaves
+    the clip staged (still publishable from the dashboard) and never propagates,
+    so a publish hiccup can't crash the render tick."""
+    try:
+        from ..upload import upload as upload_clip
+        upload_clip(result.slug, privacy=privacy)
+        log.info("autopilot: auto-published %s (%s).", result.slug, privacy)
+    except Exception as e:
+        log.warning("autopilot: auto-publish of %s failed (left staged): %s",
+                    getattr(result, "slug", "?"), e)
+
+
 def tick(*, lang: str = "en", replan: bool = False, max_per_tick: int = 1):
     """Render up to `max_per_tick` due clip(s) now, never exceeding the day's
-    `daily_target` ceiling.
+    `daily_target` ceiling, and (when `auto_publish` is on) publish each.
 
     Built for several scheduled runs per day (e.g. morning / noon / evening):
     each run renders ONE fresh clip. Pass `replan=True` (the cron default) to
@@ -160,7 +207,8 @@ def tick(*, lang: str = "en", replan: bool = False, max_per_tick: int = 1):
     produced clips, so it holds across replans and post-upload purges.
     """
     today = date.today()
-    daily_cap = store.load_config().daily_target
+    cfg = store.load_config()
+    daily_cap = cfg.daily_target
     if replan:
         regenerate_plan(today=today)
     results = []
@@ -169,6 +217,8 @@ def tick(*, lang: str = "en", replan: bool = False, max_per_tick: int = 1):
         if result is None:
             break
         results.append(result)
+        if cfg.auto_publish:
+            _auto_publish(result, privacy=cfg.publish_privacy)
     if not results:
         log.info("autopilot tick: nothing rendered (cap=%d, done_today=%d).",
                  daily_cap, _generated_today(today))

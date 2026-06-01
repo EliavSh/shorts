@@ -78,6 +78,15 @@ If the topic context is thin, make the script shorter rather than padding with i
 - `caption` is optional. Leave it null unless you want to override the auto-generated caption with a punchier headline version.
 - Optional `hook_pattern` on the hook beat (one of the names above).
 
+## Title & hashtags (for YouTube search + click-through)
+
+- **`title`** (≤110 chars): blend a searchable keyword with curiosity. Lead with the company or the concrete number, end with a reason to tap. Front-load the ticker/company name — it's what people search.
+  - ✅ *"Why Nvidia dropped 3% after beating earnings"*
+  - ✅ *"Palantir just hit a $400B valuation — here's what changed"*
+  - ❌ *"A look at today's market"* (no keyword, no curiosity)
+- Do NOT put `#hashtags` in the title.
+- **`description_hashtags`**: 5–10 relevant tags WITHOUT the `#` (the pipeline adds it). Include the ticker(s), the sector, and broad finance terms. Always include `Shorts` and `stocks`. Example: `["NVDA", "Nvidia", "stocks", "investing", "semiconductors", "earnings", "Shorts"]`.
+
 ## Output
 
 Return ONLY a JSON object matching the `Script` schema. No markdown wrappers, no prose around it. Remember to set `target_seconds` to the length you chose (see the length guidance above).

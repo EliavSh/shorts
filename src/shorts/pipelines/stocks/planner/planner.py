@@ -53,6 +53,9 @@ class MoverLite:
     ticker: str
     sector: str | None = None
     change_pct: float = 0.0
+    news_score: float = 0.0
+    """How many news mentions this ticker drew today — a relevance signal that
+    floats genuinely-talked-about names above merely-volatile ones."""
 
 
 @dataclass(frozen=True)
@@ -84,10 +87,12 @@ def _commitment_format(c: Commitment) -> str:
 
 
 def _order_movers(movers: list[MoverLite], sector_bias: dict[str, float]) -> list[MoverLite]:
-    """Rank movers by sector bias then by |change|, so a biased sector floats up."""
-    def key(m: MoverLite) -> tuple[float, float]:
+    """Rank movers by sector bias, then news relevance, then |change| — so a
+    biased sector floats up first, a news-trending name beats a quiet one, and
+    raw volatility breaks remaining ties."""
+    def key(m: MoverLite) -> tuple[float, float, float]:
         w = sector_bias.get(m.sector or "", 0.0) if sector_bias else 0.0
-        return (w, abs(m.change_pct))
+        return (w, m.news_score, abs(m.change_pct))
     return sorted(movers, key=key, reverse=True)
 
 

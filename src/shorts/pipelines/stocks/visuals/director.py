@@ -109,7 +109,86 @@ def make_plan(script: Script, *, total_duration_s: float,
         plan = _heuristic_plan(script, total_duration_s=total_duration_s, n_sections=n_sections)
 
     plan = _inject_missing_graphics(plan, script)
+    plan = _inject_hero_chart(plan, script)
     return plan
+
+
+def _hero_ticker(script: Script) -> str | None:
+    """The stock the video is most about: the most-focused `ticker_focus`, else
+    the first declared ticker. None for ticker-less formats."""
+    counts: dict[str, int] = {}
+    first: dict[str, int] = {}
+    for i, b in enumerate(script.beats):
+        tf = (b.ticker_focus or "").upper()
+        if tf:
+            counts[tf] = counts.get(tf, 0) + 1
+            first.setdefault(tf, i)
+    if counts:
+        return min(counts, key=lambda k: (-counts[k], first[k]))
+    if script.tickers:
+        return script.tickers[0].ticker.upper()
+    return None
+
+
+def _inject_hero_chart(plan: VisualPlan, script: Script) -> VisualPlan:
+    """Attach ONE real 30-day price chart for the hero stock, populated with live
+    OHLC. A chart shows actual price action — far more credible than another
+    number card. Skipped when the director already placed a hero graphic (so we
+    never exceed one hero graphic + the CTA), or for ticker-less formats.
+    """
+    if not plan.sections:
+        return plan
+    if any(s.graphic_spec and s.graphic_spec.get("kind") != "follow_cta"
+           for s in plan.sections):
+        return plan  # respect the director's own hero graphic — keep ≤1
+
+    ticker = _hero_ticker(script)
+    if not ticker:
+        return plan
+    try:
+        from ..data.market import get_quote
+        q = get_quote(ticker)
+    except Exception as e:
+        log.debug("hero chart: get_quote(%s) failed: %s", ticker, e)
+        return plan
+    if q is None or not q.ohlc_30d:
+        return plan
+
+    ohlc = [[float(o), float(h), float(l), float(c)] for (o, h, l, c) in q.ohlc_30d]
+    first_close, last_close = ohlc[0][3], ohlc[-1][3]
+    spec = {
+        "kind": "mini_chart",
+        "params": {
+            "title": f"{ticker} — last 30 days",
+            "ohlc": ohlc,
+            "label_start": f"${first_close:,.0f}",
+            "label_end": f"${last_close:,.0f}",
+            "direction": "up" if last_close >= first_close else "down",
+        },
+    }
+
+    sections = plan.sections
+    body = lambda i: 0 < i < len(sections) - 1  # noqa: E731 — not hook, not CTA
+
+    cand = next((i for i, s in enumerate(sections)
+                 if s.graphic_spec is None and body(i)
+                 and (s.ticker_focus or "").upper() == ticker), None)
+    if cand is None:
+        cand = next((i for i, s in enumerate(sections)
+                     if s.graphic_spec is None and body(i)), None)
+    if cand is None:
+        return plan
+
+    target = sections[cand]
+    updated = list(sections)
+    updated[cand] = VisualSection(
+        start_s=target.start_s, end_s=target.end_s, intent=target.intent,
+        search_queries=target.search_queries,
+        ticker_focus=target.ticker_focus or ticker,
+        related_beat_idx=target.related_beat_idx, graphic_spec=spec,
+    )
+    log.info("injected hero mini_chart for %s at section %d", ticker, cand)
+    return VisualPlan(sections=updated)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

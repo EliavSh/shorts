@@ -405,6 +405,7 @@ def tune_submit(
     sector_bias: str = Form(""),
     type_mix: str = Form(""),
     directive: str = Form(""),
+    auto_publish: str = Form(""),
 ) -> RedirectResponse:
     """Write orchestration.json from the knobs, then regenerate the plan.
 
@@ -420,6 +421,8 @@ def tune_submit(
     cfg.sector_bias = _parse_weights(sector_bias)
     cfg.type_mix = _parse_weights(type_mix)
     cfg.free_text_directive = directive.strip()
+    # Unchecked checkboxes submit nothing, so absence == off.
+    cfg.auto_publish = auto_publish.lower() in ("1", "true", "on", "yes")
     plan_store.save_config(cfg)
 
     background_tasks.add_task(regenerate_plan)

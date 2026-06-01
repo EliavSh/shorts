@@ -50,6 +50,81 @@ class RunResult:
 
 _review_store = ReviewStore("stocks")
 
+_DISCLAIMER = (
+    "Not financial advice. For education and entertainment only. "
+    "Do your own research before investing."
+)
+
+
+def _build_description(script, *, credits: list[str] | None = None) -> str:
+    """Compose a SEO-friendly YouTube description from a finished script.
+
+    Structure: hook line → 2-3 key takeaways → ticker cashtags → image credits
+    → disclaimer → hashtags. Best-effort; never raises (callers fall back to a
+    plain narration join if this throws).
+    """
+    beats = list(getattr(script, "beats", []) or [])
+    hook = next((b.narration.strip() for b in beats
+                 if getattr(b, "role", None) == "hook" and b.narration.strip()),
+                beats[0].narration.strip() if beats else "")
+
+    # 2-3 substantive takeaways from the body (skip hook + any cta).
+    takeaways: list[str] = []
+    for b in beats:
+        if getattr(b, "role", None) in ("hook", "cta"):
+            continue
+        text = (b.narration or "").strip()
+        if text and text != hook:
+            takeaways.append(text)
+        if len(takeaways) >= 3:
+            break
+
+    # Ticker cashtags ($NVDA …), de-duped, order-preserving.
+    seen: set[str] = set()
+    cashtags: list[str] = []
+    for t in getattr(script, "tickers", []) or []:
+        sym = (getattr(t, "ticker", "") or "").upper().lstrip("$")
+        if sym and sym not in seen:
+            seen.add(sym)
+            cashtags.append(f"${sym}")
+
+    # Hashtags from the writer's chosen tags; always ensure #Shorts + #stocks.
+    raw_tags = [h.lstrip("#") for h in getattr(script, "description_hashtags", []) if h]
+    tag_seen: set[str] = set()
+    hashtags: list[str] = []
+    for tag in raw_tags + ["Shorts", "stocks"]:
+        key = tag.lower()
+        if tag and key not in tag_seen:
+            tag_seen.add(key)
+            hashtags.append(f"#{tag}")
+
+    parts: list[str] = []
+    if hook:
+        parts.append(hook)
+    if takeaways:
+        parts.append("\n".join(f"• {t}" for t in takeaways))
+    if cashtags:
+        parts.append("Tickers: " + " ".join(cashtags))
+    if credits:
+        parts.append("Image credits: " + "; ".join(credits))
+    parts.append(_DISCLAIMER)
+    if hashtags:
+        parts.append(" ".join(hashtags))
+    return "\n\n".join(parts)
+
+
+def _description_tags(script) -> list[str]:
+    """Tag list for the YouTube API field; always include Shorts + stocks."""
+    seen: set[str] = set()
+    tags: list[str] = []
+    for h in list(getattr(script, "description_hashtags", []) or []) + ["Shorts", "stocks"]:
+        tag = (h or "").lstrip("#")
+        key = tag.lower()
+        if tag and key not in seen:
+            seen.add(key)
+            tags.append(tag)
+    return tags
+
 
 def emit_review_state(
     *,
@@ -69,8 +144,12 @@ def emit_review_state(
     captions = [b.caption for b in script.beats if getattr(b, "caption", None)]
     hook = next((b.narration for b in script.beats if b.role == "hook"),
                 script.beats[0].narration if script.beats else "")
-    description = " ".join(b.narration for b in script.beats)
-    tags = [h.lstrip("#") for h in getattr(script, "description_hashtags", [])]
+    try:
+        description = _build_description(script)
+    except Exception as e:  # never fail a render over description SEO
+        log.warning("[%s] description build failed: %s", slug, e)
+        description = " ".join(b.narration for b in script.beats)
+    tags = _description_tags(script)
 
     # A plain (re-)render always writes v1 and overwrites it in place. Version
     # accumulation is reserved for the comment→regen flow, not bare re-renders,
@@ -115,8 +194,12 @@ def emit_next_version(*, slug: str, script) -> Path:
     captions = [b.caption for b in script.beats if getattr(b, "caption", None)]
     hook = next((b.narration for b in script.beats if b.role == "hook"),
                 script.beats[0].narration if script.beats else "")
-    description = " ".join(b.narration for b in script.beats)
-    tags = [h.lstrip("#") for h in getattr(script, "description_hashtags", [])]
+    try:
+        description = _build_description(script)
+    except Exception as e:
+        log.warning("[%s] description build failed: %s", slug, e)
+        description = " ".join(b.narration for b in script.beats)
+    tags = _description_tags(script)
 
     next_v = existing.current_version + 1
     existing.versions.append(Version(

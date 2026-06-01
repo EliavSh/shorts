@@ -75,14 +75,17 @@ def dashboard_cmd(host: str, port: int) -> None:
 @click.argument("item_id")
 @click.option("--pipeline", "-p", required=True, type=click.Choice(["brawl", "stocks"]))
 @click.option("--dry-run", is_flag=True)
-def upload_cmd(item_id: str, pipeline: str, dry_run: bool) -> None:
+@click.option("--privacy", type=click.Choice(["public", "unlisted", "private"]),
+              default="public", show_default=True,
+              help="YouTube privacy for the upload (stocks).")
+def upload_cmd(item_id: str, pipeline: str, dry_run: bool, privacy: str) -> None:
     """Upload an approved item to that pipeline's YouTube channel."""
     if pipeline == "brawl":
         from shorts.pipelines.brawl.upload import upload as brawl_upload
         brawl_upload(item_id, dry_run=dry_run)
     elif pipeline == "stocks":
         from shorts.pipelines.stocks.upload import upload as stocks_upload
-        stocks_upload(item_id, dry_run=dry_run)
+        stocks_upload(item_id, dry_run=dry_run, privacy=privacy)
 
 
 @app.command("auth")

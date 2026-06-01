@@ -47,17 +47,19 @@ def test_unknown_format_raises() -> None:
 
 
 def test_format_ticker_count_enforced() -> None:
-    """deep_dive_one_stock with two tickers should fail."""
+    """deep_dive_one_stock allows only one ticker — extras are trimmed to the
+    most-focused one rather than raising (writer self-heals an over-eager LLM)."""
     bad_path = FIX_DIR / "bad_too_many_tickers.json"
     bad_path.write_text(
         '{"lang":"en","format":"deep_dive_one_stock","title":"x x x x x",'
         '"tickers":[{"ticker":"NVDA","name":"Nvidia","change_pct":1},'
         '{"ticker":"TSM","name":"TSMC","change_pct":1}],'
-        '"beats":[{"narration":"a a"},{"narration":"b b"}]}',
+        '"beats":[{"narration":"a a","ticker_focus":"NVDA"},{"narration":"b b"}]}',
         encoding="utf-8",
     )
     try:
-        with pytest.raises(ValueError):
-            write_script_from_fixture(bad_path)
+        s = write_script_from_fixture(bad_path)
+        assert len(s.tickers) == 1
+        assert s.tickers[0].ticker == "NVDA"
     finally:
         bad_path.unlink()

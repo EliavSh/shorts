@@ -32,7 +32,7 @@ def _manifest_meta(mp4) -> tuple[str, list[str]]:
         return "", []
 
 
-def upload(slug: str, *, dry_run: bool = False) -> None:
+def upload(slug: str, *, dry_run: bool = False, privacy: str = "unlisted") -> None:
     load_secrets(require_anthropic=False)
     store = ReviewStore("stocks")
     item = store.load(slug)
@@ -52,8 +52,9 @@ def upload(slug: str, *, dry_run: bool = False) -> None:
 
     auth = auth_from_env("stocks")
     console.print(f"[bold]Uploading[/bold] {slug} v{version.v} → channel={auth.channel_id or '(default)'}")
-    console.print(f"  title: {version.title}")
-    console.print(f"  mp4:   {mp4}")
+    console.print(f"  title:   {version.title}")
+    console.print(f"  privacy: {privacy}")
+    console.print(f"  mp4:     {mp4}")
 
     if dry_run:
         console.print("[yellow]dry-run — skipping actual upload[/yellow]")
@@ -65,7 +66,7 @@ def upload(slug: str, *, dry_run: bool = False) -> None:
         title=version.title,
         description=version.description,
         tags=version.tags,
-        privacy="unlisted",
+        privacy=privacy,
         pipeline="stocks",
     )
     console.print(f"[green]✓ uploaded:[/green] {result.url}")

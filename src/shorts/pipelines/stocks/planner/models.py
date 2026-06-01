@@ -88,6 +88,11 @@ class OrchestrationConfig(BaseModel):
     """How many clips to stage per day (the daily batch the dashboard shows)."""
     weekly_volume: int = 3  # legacy alias; daily_target is the active knob
     cadence_days: int = 1
+    auto_publish: bool = True
+    """When true, each rendered clip is uploaded to YouTube automatically (no
+    manual review). Set false to keep clips staged in the dashboard instead."""
+    publish_privacy: str = "public"
+    """YouTube privacy for auto-published clips: public | unlisted | private."""
     series: list[Series] = Field(default_factory=list)
     free_text_directive: str = ""
     updated_at: str = Field(default_factory=_now)
