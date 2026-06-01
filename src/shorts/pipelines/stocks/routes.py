@@ -353,6 +353,7 @@ def plan_page(request: Request) -> Any:
     debt = plan_store.load_debt()
     cfg = plan_store.load_config()
     ideas = plan_store.load_ideas()
+    strategy = plan_store.load_strategy()
     jobs = job_mod.list_jobs(PIPELINE, limit=10)
 
     # Editorial mix: count upcoming (not-yet-rendered) items by content lane.
@@ -367,6 +368,7 @@ def plan_page(request: Request) -> Any:
             "series": cfg.active_series(),
             "ideas": ideas.items,
             "mix": dict(mix),
+            "strategy": strategy,
             "jobs": jobs,
         },
     )

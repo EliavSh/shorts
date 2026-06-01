@@ -79,6 +79,19 @@
       <span class="muted">Plan generated {{ plan.generated_at }} • auto-pilot renders top-down.</span>
     </div>
 
+    {% if strategy and strategy.directive %}
+      <div class="card" style="border-left:3px solid #c08af0">
+        <h2 style="margin-top:0">🧠 Channel strategist</h2>
+        <div style="margin-bottom:8px">{{ strategy.directive }}</div>
+        <div class="muted" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+          {% if strategy.cooldown_tickers %}<span class="pill">resting: {{ strategy.cooldown_tickers|join(', ') }}</span>{% endif %}
+          {% if strategy.favor_sectors %}<span class="pill">lean in: {{ strategy.favor_sectors|join(', ') }}</span>{% endif %}
+          {% if strategy.top_performers %}<span class="pill">top: {{ strategy.top_performers[0] }}</span>{% endif %}
+          <span class="muted">from last {{ strategy.sample_size }} uploads{% if strategy.computed_at %} · {{ strategy.computed_at }}{% endif %}</span>
+        </div>
+      </div>
+    {% endif %}
+
     {% set kind_order = ['news', 'evergreen', 'series', 'earnings', 'commitment'] %}
     {% if mix %}
       <div class="mix">

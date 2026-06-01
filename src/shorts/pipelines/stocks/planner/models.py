@@ -148,3 +148,19 @@ class IdeaFile(BaseModel):
 
     def open(self) -> list[IdeaItem]:
         return [i for i in self.items if i.status == "open"]
+
+
+class Strategy(BaseModel):
+    """Channel strategist output — what the audience-aware critic recommends.
+
+    `directive` is advisory (shown on the Plan page). `cooldown_tickers` is the
+    concrete soft-nudge: the planner adds them to the recently-used set so they're
+    avoided in selection (a genuinely news-hot one can still break through)."""
+
+    directive: str = ""
+    cooldown_tickers: list[str] = Field(default_factory=list)
+    cooldown_sectors: list[str] = Field(default_factory=list)
+    favor_sectors: list[str] = Field(default_factory=list)
+    top_performers: list[str] = Field(default_factory=list)
+    sample_size: int = 0
+    computed_at: str = ""

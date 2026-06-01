@@ -10,7 +10,7 @@ from pathlib import Path
 
 from shorts.config import pipeline_data_dir
 
-from .models import DebtFile, IdeaFile, OrchestrationConfig, Plan
+from .models import DebtFile, IdeaFile, OrchestrationConfig, Plan, Strategy
 
 _PIPELINE = "stocks"
 
@@ -67,6 +67,17 @@ def load_ideas() -> IdeaFile:
 def save_ideas(ideas: IdeaFile) -> None:
     ideas.updated_at = datetime.now().isoformat(timespec="seconds")
     _write(_path("ideas.json"), ideas)
+
+
+# ── Channel strategy ────────────────────────────────────────────────────────
+
+def load_strategy() -> Strategy:
+    data = _read(_path("strategy.json"))
+    return Strategy.model_validate(data) if data else Strategy()
+
+
+def save_strategy(strategy: Strategy) -> None:
+    _write(_path("strategy.json"), strategy)
 
 
 # ── Orchestration config ────────────────────────────────────────────────────

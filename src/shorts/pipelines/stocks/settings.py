@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     youtube_token_path: Path = Path("./secrets/youtube_token.json")
     youtube_staging_channel_id: str = ""
     youtube_public_channel_id: str = ""
+    # Public Data-API key (videos.list statistics) for the channel strategist's
+    # view/like signal. Optional — without it the strategist falls back to
+    # diversity-from-history only.
+    youtube_api_key: str = ""
 
     # App — paths default to the stocks-isolated data dir.
     db_url: str = "sqlite:///./data/stocks/stocksreels.db"

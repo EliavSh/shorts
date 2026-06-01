@@ -103,6 +103,18 @@ def regenerate_plan(*, today: date | None = None) -> Plan:
     debt = store.load_debt()
     recent_formats, recent_tickers = _recent_renders()
 
+    # Channel strategist (cached ~daily): rest over-covered tickers by folding
+    # them into the recently-used set, so the planner avoids them in selection
+    # (a genuinely news-hot one can still break through via build_plan's fallback).
+    try:
+        from .strategist import get_strategy
+        strat = get_strategy()
+        if strat.cooldown_tickers:
+            recent_tickers = tuple({*recent_tickers, *(t.upper() for t in strat.cooldown_tickers)})
+            log.info("strategist: cooling down %s", strat.cooldown_tickers)
+    except Exception as e:
+        log.debug("strategist skipped: %s", e)
+
     pinned = [it for it in store.load_plan().items if it.pinned and it.status != "rendered"]
 
     plan = build_plan(
