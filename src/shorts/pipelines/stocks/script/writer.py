@@ -198,12 +198,40 @@ def _emit_script(client, model: str, system_prompt: str, user_message: str) -> S
             # the tool input_schema being the Script itself. Unwrap.
             if isinstance(payload, dict) and set(payload.keys()) == {"script"} and isinstance(payload["script"], dict):
                 payload = payload["script"]
+            _coerce_payload(payload)
             script = Script.model_validate(payload)
             _repair_format_constraints(script)
             _validate_format_constraints(script)
             return script
 
     raise RuntimeError(f"Claude did not emit a tool_use block. Stop reason: {response.stop_reason!r}")
+
+
+# Schema list caps the model occasionally over-shoots (it generates a few extra
+# hashtags/tickers). These are harmless to trim, so we clamp the payload BEFORE
+# pydantic validation — otherwise a single extra hashtag hard-fails the whole
+# render instead of dropping one tag.
+_LIST_CAPS = {"description_hashtags": 12, "tickers": 6, "beats": 24}
+_BEAT_LIST_CAPS = {"visual_tags": 4}
+
+
+def _coerce_payload(payload) -> None:
+    """Best-effort, in-place trim of over-limit list fields so a slightly
+    over-generated script validates instead of crashing the render."""
+    if not isinstance(payload, dict):
+        return
+    for key, cap in _LIST_CAPS.items():
+        val = payload.get(key)
+        if isinstance(val, list) and len(val) > cap:
+            log.warning("trimming %s from %d to %d items", key, len(val), cap)
+            payload[key] = val[:cap]
+    for beat in payload.get("beats", []) or []:
+        if not isinstance(beat, dict):
+            continue
+        for key, cap in _BEAT_LIST_CAPS.items():
+            val = beat.get(key)
+            if isinstance(val, list) and len(val) > cap:
+                beat[key] = val[:cap]
 
 
 def _strengthen_hook(script: Script, *, client, model: str) -> None:

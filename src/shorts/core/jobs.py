@@ -22,6 +22,10 @@ from shorts.config import pipeline_data_dir
 _lock = threading.Lock()
 _MAX_JOBS_KEPT = 50
 _LOG_TAIL_BYTES = 2000
+# A render is a few minutes; anything still "running" past this was orphaned
+# (e.g. the machine auto-stopped mid-render) and should be marked failed so the
+# dashboard stops showing a forever-stuck card.
+_MAX_RUN_SECONDS = 1200
 
 
 def _jobs_path(pipeline: str) -> Path:
@@ -183,17 +187,38 @@ def _watch(
         )
 
 
+def _running_seconds(job: dict[str, Any]) -> float:
+    """How long a job has been running, in seconds (∞ if unparseable)."""
+    try:
+        started = datetime.fromisoformat(job.get("started_at", ""))
+        return (datetime.now() - started).total_seconds()
+    except Exception:
+        return float("inf")
+
+
 def list_jobs(pipeline: str, limit: int = 20) -> list[dict[str, Any]]:
-    """Reconcile stale 'running' rows (dead PID) then return newest-first."""
+    """Reconcile stale 'running' rows then return newest-first.
+
+    A row is stale if its PID is gone (process exited/killed) OR it has been
+    'running' longer than any real render could take — the latter catches jobs
+    orphaned when the Fly machine auto-stops mid-render and kills the watcher
+    thread (so the dead-PID check never runs on a now-recycled PID)."""
     with _lock:
         jobs = _load(pipeline)
         dirty = False
         for j in jobs:
-            if j["status"] == "running" and not _is_alive(j.get("pid")):
+            if j["status"] != "running":
+                continue
+            too_old = _running_seconds(j) > _MAX_RUN_SECONDS
+            if too_old or not _is_alive(j.get("pid")):
                 j["status"] = "failed"
                 j["exit_code"] = -1
                 j["finished_at"] = _now()
-                j["log_tail"] = j.get("log_tail") or "(process gone — likely killed when server restarted)"
+                reason = ("(timed out — likely killed when the machine slept mid-render)"
+                          if too_old else
+                          "(process gone — likely killed when server restarted)")
+                j["log_tail"] = j.get("log_tail") or reason
+                j["stage_label"] = "Failed"
                 dirty = True
         if dirty:
             _save(pipeline, jobs)
