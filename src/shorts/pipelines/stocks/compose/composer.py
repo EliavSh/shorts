@@ -31,11 +31,10 @@ from ..formats._shared import compute_beat_timings
 
 log = logging.getLogger(__name__)
 
-# 24 fps instead of 30 — moviepy renders every frame in Python (each Ken Burns
-# shot does a full 1080x1920 resize per frame), so frame count is the dominant
-# cost. 24 is the cinematic standard and cuts ~20% of the compositing work with
-# no perceptible quality loss on slow pans + captions.
-FPS = 24
+# 30 fps for smoother motion. The render box runs on performance CPUs now, so it
+# absorbs the extra frames (moviepy composites every frame in Python). Keep in
+# sync with kenburns.FPS.
+FPS = 30
 FALLBACK_BG = (12, 24, 48)
 
 

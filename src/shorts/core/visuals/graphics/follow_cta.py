@@ -14,9 +14,13 @@ FRAME_W = 1080
 FRAME_H = 1920
 
 
-def render(*, brand: Brand, headline: str = "Follow for daily market moves",
+def render(*, brand: Brand, headline: str | None = None,
            subline: str | None = None) -> Image.Image:
-    """A vertical CTA: big brand-coloured arrow → big text → subtitle."""
+    """A vertical CTA: big brand-coloured Subscribe button → headline → subtitle.
+
+    `headline` defaults to the brand's canonical `cta_text` so the closing line is
+    edited in one place (config/stocks/brand_en.yaml)."""
+    headline = headline or brand.cta_text
     style = brand.ticker_card
     img = Image.new("RGB", (FRAME_W, FRAME_H), (12, 24, 48))
     draw = ImageDraw.Draw(img, "RGBA")
@@ -35,7 +39,7 @@ def render(*, brand: Brand, headline: str = "Follow for daily market moves",
         (pill_x, pill_y, pill_x + pill_w, pill_y + pill_h),
         radius=46, fill=hex_to_rgba(accent, 1.0),
     )
-    follow_txt = "+ FOLLOW"
+    follow_txt = "SUBSCRIBE"
     bbox = draw.textbbox((0, 0), follow_txt, font=f_pill)
     fw = bbox[2] - bbox[0]
     fh = bbox[3] - bbox[1]

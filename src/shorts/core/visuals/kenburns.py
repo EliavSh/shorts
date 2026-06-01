@@ -12,9 +12,8 @@ from PIL import Image
 
 FRAME_W = 1080
 FRAME_H = 1920
-# Keep in sync with the composer's output fps. Fewer frames = less per-frame
-# Python compositing work (each frame here does a full-frame resize).
-FPS = 24
+# Keep in sync with the composer's output fps.
+FPS = 30
 
 
 def make_kenburns_clip(image_path: Path, *, duration_s: float,

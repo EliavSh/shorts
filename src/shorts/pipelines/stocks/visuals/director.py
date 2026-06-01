@@ -229,7 +229,7 @@ Still useful as graphics when they truly sharpen the point (optional):
 One caveat: avoid retrieved photos that contain large *conflicting* numbers in
 them — a stock chart screenshot with a different ticker is the #1 quality killer.
 
-Also: if the LAST beat is a CTA (role=cta), set `graphic_spec` = `{"kind": "follow_cta", "params": {"headline": "Follow for daily market moves"}}`.
+Also: if the LAST beat is a CTA (role=cta), set `graphic_spec` = `{"kind": "follow_cta", "params": {}}` (the brand's subscribe line is filled in automatically).
 
 ## graphic_spec catalogue
 
@@ -240,7 +240,7 @@ Also: if the LAST beat is a CTA (role=cta), set `graphic_spec` = `{"kind": "foll
 {"kind": "number_callout", "params": {"number": "3,000",  "label": "Intuit layoffs (17% of staff)",  "direction": "down"}}
 {"kind": "bar_compare",    "params": {"title": "Q3 vs Q2 revenue", "bars": [{"label":"Q2","value":76.4},{"label":"Q3","value":81.6}], "unit":"B"}}
 {"kind": "mini_chart",     "params": {"title": "QNTY: 1-year run", "line": [50,55,62,70,78,86,95,105], "label_start":"Nov 25", "label_end":"+100%", "direction":"up"}}
-{"kind": "follow_cta",     "params": {"headline": "Follow for daily market moves"}}
+{"kind": "follow_cta",     "params": {}}
 ```
 
 `direction` is "up" for positive moves / "down" for negative / "neutral".

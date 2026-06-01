@@ -173,6 +173,25 @@ def write_script(ctx: TopicContext, *, model: str | None = None,
         except Exception as e:
             log.warning("corrective rewrite failed, keeping original: %s", e)
 
+    # Self-consistency: does the hook's promise actually get delivered by the
+    # body? (e.g. "12 companies touch the chip" then names 4.) One corrective
+    # rewrite if not. Best-effort.
+    issues = _inspect_consistency(script, client=client, model=s.claude_director_model)
+    if issues:
+        log.warning("consistency inspector flagged %s — one corrective rewrite", issues)
+        note = (
+            "IMPORTANT: the hook makes a promise the body doesn't deliver. Make "
+            "the script internally consistent — either deliver exactly what the "
+            "hook sets up, or change the hook to match what the body actually "
+            "covers. Fix these: " + "; ".join(issues)
+        )
+        combined = f"{guidance}\n\n{note}" if guidance else note
+        try:
+            script = _emit_script(client, chosen_model, system_prompt,
+                                  _topic_to_user_message(ctx, format_hint, combined))
+        except Exception as e:
+            log.warning("consistency rewrite failed, keeping original: %s", e)
+
     # Punch up the opening line — the first ~1.5s decide a Short. Best-effort.
     _strengthen_hook(script, client=client, model=s.claude_director_model)
     return script
@@ -281,6 +300,61 @@ def _strengthen_hook(script: Script, *, client, model: str) -> None:
             log.info("hook strengthened: %r -> %r", original, text)
     except Exception as e:
         log.debug("hook strengthen skipped: %s", e)
+
+
+# --- Self-consistency inspector ---------------------------------------------
+
+def _inspect_consistency(script: Script, *, client, model: str) -> list[str]:
+    """Cheap critic pass: does the hook's promise actually get delivered by the
+    body? Returns short issue strings (empty list = consistent). Best-effort —
+    any error (or unparseable reply) returns [] so a render is never blocked."""
+    beats = getattr(script, "beats", []) or []
+    if len(beats) < 3:
+        return []
+    transcript = "\n".join(
+        f"[{getattr(b, 'role', None) or 'body'}] {(b.narration or '').strip()}"
+        for b in beats
+    )
+    prompt = (
+        "You are a sharp script editor checking a short finance video for ONE "
+        "thing: internal consistency between the hook (first beat) and the rest. "
+        "Flag a problem ONLY when the hook makes a specific promise the body fails "
+        "to deliver — e.g. it states a count or list size the body doesn't match "
+        "(\"12 companies touch the chip\" but only 4 are named), teases a subject "
+        "that's never covered, or poses a question with no payoff. Do NOT flag "
+        "style, energy, length, or anything else. If it's consistent, return an "
+        "empty list.\n\n"
+        "Respond with ONLY JSON: {\"issues\": [\"<short problem>\", ...]}\n\n"
+        f"Script beats:\n{transcript}"
+    )
+    try:
+        resp = client.messages.create(
+            model=model, max_tokens=300,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = "".join(getattr(b, "text", "") for b in resp.content
+                       if getattr(b, "type", None) == "text")
+        return _parse_issues(text)[:4]
+    except Exception as e:
+        log.debug("consistency inspect skipped: %s", e)
+        return []
+
+
+def _parse_issues(text: str) -> list[str]:
+    """Lenient extract of {"issues": [...]} from a model reply."""
+    import json
+
+    m = re.search(r"\{.*\}", text or "", re.S)
+    if not m:
+        return []
+    try:
+        data = json.loads(m.group(0))
+    except Exception:
+        return []
+    issues = data.get("issues") if isinstance(data, dict) else None
+    if not isinstance(issues, list):
+        return []
+    return [str(x).strip() for x in issues if str(x).strip()]
 
 
 # --- Number grounding -------------------------------------------------------
