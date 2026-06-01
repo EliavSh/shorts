@@ -192,18 +192,22 @@ def compose_video(*, script: Script, tts: TTSResult, out_path: Path,
 
     # Write a sidecar manifest describing what was chosen — useful for the
     # `stocksreels inspect` command and for the dashboard later.
-    # Include a cost_breakdown sourced from the usage layer (R-cost).
-    from shorts.core.usage import current_video, spend_by_video
+    # Include a cost_breakdown sourced from the usage layer (R-cost). Best-effort:
+    # the cost manifest is non-essential and must NEVER crash a finished render.
     cost_breakdown: dict = {}
-    cur = current_video()
-    if cur:
-        v = spend_by_video().get(cur, {})
-        cost_breakdown = {
-            "total_usd": round(v.get("cost_usd", 0.0), 4),
-            "by_provider": {k: round(c, 4) for k, c in v.get("by_provider", {}).items()},
-            "events": v.get("events", 0),
-            "video_slug": cur,
-        }
+    try:
+        from shorts.core.usage import current_video, spend_by_video
+        cur = current_video()
+        if cur:
+            v = spend_by_video(pipeline="stocks").get(cur, {})
+            cost_breakdown = {
+                "total_usd": round(v.get("cost_usd", 0.0), 4),
+                "by_provider": {k: round(c, 4) for k, c in v.get("by_provider", {}).items()},
+                "events": v.get("events", 0),
+                "video_slug": cur,
+            }
+    except Exception as e:
+        log.warning("cost_breakdown unavailable (non-fatal): %s", e)
     manifest_path = out_path.with_suffix(".manifest.json")
     manifest = {
         "mp4": out_path.name,
