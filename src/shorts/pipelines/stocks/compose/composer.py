@@ -7,6 +7,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
+from datetime import datetime
 from pathlib import Path
 
 import random
@@ -29,7 +31,11 @@ from ..formats._shared import compute_beat_timings
 
 log = logging.getLogger(__name__)
 
-FPS = 30
+# 24 fps instead of 30 — moviepy renders every frame in Python (each Ken Burns
+# shot does a full 1080x1920 resize per frame), so frame count is the dominant
+# cost. 24 is the cinematic standard and cuts ~20% of the compositing work with
+# no perceptible quality loss on slow pans + captions.
+FPS = 24
 FALLBACK_BG = (12, 24, 48)
 
 
@@ -59,11 +65,15 @@ def _pick_music_bed(duration_s: float):
 
 
 def compose_video(*, script: Script, tts: TTSResult, out_path: Path,
-                  guidance: str | None = None) -> Path:
+                  guidance: str | None = None,
+                  started_at: float | None = None) -> Path:
     """Render the final 1080x1920 mp4.
 
     `guidance` carries reviewer feedback from a comment-driven regeneration so
     the visual director can correct mismatched/boring imagery.
+
+    `started_at` is a `time.monotonic()` stamp taken when the whole render began;
+    when given, the manifest records how long the clip took to build.
     """
     brand = load_brand(script.lang)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -168,6 +178,10 @@ def compose_video(*, script: Script, tts: TTSResult, out_path: Path,
         "format": script.format,
         "title": script.title,
         "duration_s": total_s,
+        # When the clip finished building on the server, and how long it took.
+        "rendered_at": datetime.now().isoformat(timespec="seconds"),
+        "render_seconds": (round(time.monotonic() - started_at, 1)
+                           if started_at is not None else None),
         "tickers": [t.model_dump() for t in script.tickers],
         "plan_sections": [
             {

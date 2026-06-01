@@ -30,9 +30,15 @@
       <div class="chips">
         {% if m.format %}<span class="chip">{{ m.format.replace('_',' ') }}</span>{% endif %}
         {% if m.sector %}<span class="chip">{{ m.sector }}</span>{% endif %}
-        {% if m.duration_s %}<span class="chip">{{ m.duration_s|round|int }}s</span>{% endif %}
+        {% if m.duration_s %}<span class="chip" title="clip length">{{ m.duration_s|round|int }}s</span>{% endif %}
         {% for t in m.tickers %}<span class="chip">{{ t }}</span>{% endfor %}
       </div>
+      {% if m.build_time or m.ready_at %}
+        <div class="chips">
+          {% if m.build_time %}<span class="chip" title="time to build this clip on the server">⏱ built in {{ m.build_time }}</span>{% endif %}
+          {% if m.ready_at %}<span class="chip" title="when it finished building (server time, UTC)">✓ ready {{ m.ready_at }} UTC</span>{% endif %}
+        </div>
+      {% endif %}
 
       <form class="comment" method="post" action="{{ url_prefix }}/run/{{ item.run_id }}/comment">
         <input type="text" name="text" placeholder="What to fix? (e.g. add Q revenue)"

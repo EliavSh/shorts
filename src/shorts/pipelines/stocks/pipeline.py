@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -227,6 +228,7 @@ def run_daily(*, lang: str = "en", force: bool = False) -> RunResult | None:
 
 
 def _run_daily_inner(*, lang: str = "en", force: bool = False) -> RunResult | None:
+    _t0 = time.monotonic()
     today_slug = datetime.now(timezone.utc).strftime("%Y%m%d") + f"_{lang}"
     log.info("=== daily run start: %s ===", today_slug)
 
@@ -301,7 +303,7 @@ def _run_daily_inner(*, lang: str = "en", force: bool = False) -> RunResult | No
         creator_handle=primary.ticker,
     )
     log.info("[%s] composing video ...", slug)
-    compose_video(script=script, tts=tts, out_path=mp4_path)
+    compose_video(script=script, tts=tts, out_path=mp4_path, started_at=_t0)
     duration_s = float(tts.duration_s)
     with Session(get_engine()) as session:
         render_row = RenderRow(
@@ -328,6 +330,7 @@ def render_planned_item(item, *, lang: str = "en") -> RunResult | None:
     and marks the item rendered in plan.json (fulfilling any linked commitment).
     Returns None if the topic context can't be built (no resolvable tickers).
     """
+    _t0 = time.monotonic()
     from .planner import store as plan_store
     from .planner.debt_extract import extract_and_record
 
@@ -378,7 +381,7 @@ def render_planned_item(item, *, lang: str = "en") -> RunResult | None:
     work_dir = s.output_dir / slug
     tts = synthesize(text=script.narration_text(), lang=lang, out_dir=work_dir)
     mp4_path = emit_review_state(slug=slug, script=script, creator_handle=item.source)
-    compose_video(script=script, tts=tts, out_path=mp4_path)
+    compose_video(script=script, tts=tts, out_path=mp4_path, started_at=_t0)
     duration_s = float(tts.duration_s)
 
     with Session(get_engine()) as session:
@@ -407,6 +410,7 @@ def regenerate_clip(slug: str, *, lang: str = "en", guidance: str = "") -> RunRe
     result as vN+1 in the review store. Returns None if the topic context for
     the slug can't be recovered.
     """
+    _t0 = time.monotonic()
     from .script.schemas import Script as ScriptModel
     from .script.schemas import TopicContext
 
@@ -460,7 +464,7 @@ def regenerate_clip(slug: str, *, lang: str = "en", guidance: str = "") -> RunRe
     work_dir = s.output_dir / slug
     tts = synthesize(text=script.narration_text(), lang=lang, out_dir=work_dir)
     mp4_path = emit_next_version(slug=slug, script=script)
-    compose_video(script=script, tts=tts, out_path=mp4_path, guidance=guidance)
+    compose_video(script=script, tts=tts, out_path=mp4_path, guidance=guidance, started_at=_t0)
     duration_s = float(tts.duration_s)
 
     with Session(get_engine()) as session:

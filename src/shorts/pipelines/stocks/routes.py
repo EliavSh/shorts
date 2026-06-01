@@ -106,7 +106,8 @@ def _clip_meta(run_id: str, version: int) -> dict:
     from .planner.published import sector_for
 
     manifest = _store.short_path(run_id, version).with_suffix(".manifest.json")
-    meta = {"format": "", "sector": "", "tickers": [], "duration_s": None, "cost_usd": None}
+    meta = {"format": "", "sector": "", "tickers": [], "duration_s": None,
+            "cost_usd": None, "ready_at": None, "build_time": None}
     if manifest.exists():
         try:
             m = _json.loads(manifest.read_text(encoding="utf-8"))
@@ -114,6 +115,15 @@ def _clip_meta(run_id: str, version: int) -> dict:
             meta["tickers"] = [t.get("ticker", "") for t in m.get("tickers", []) if t.get("ticker")]
             meta["duration_s"] = m.get("duration_s")
             meta["cost_usd"] = (m.get("cost_breakdown") or {}).get("total_usd")
+            # When it finished building (server clock, UTC) → show HH:MM.
+            ra = m.get("rendered_at")
+            if isinstance(ra, str) and len(ra) >= 16:
+                meta["ready_at"] = ra[11:16]
+            # How long it took to build → "2m 34s" or "47s".
+            rs = m.get("render_seconds")
+            if isinstance(rs, (int, float)):
+                rs = int(round(rs))
+                meta["build_time"] = f"{rs // 60}m {rs % 60:02d}s" if rs >= 60 else f"{rs}s"
             if meta["tickers"]:
                 meta["sector"] = sector_for(meta["tickers"][0])
         except Exception:

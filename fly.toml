@@ -44,8 +44,11 @@ primary_region = "fra"   # Frankfurt — closest to Israel; switch to "iad"/"sjc
   min_machines_running = 1
 
 [[vm]]
-  # Shared CPU keeps cost ~$5/mo. Renders run a bit slower but they're background
-  # jobs. 2GB RAM for ffmpeg + Pillow + Claude vision frame analysis.
+  # moviepy composites every frame in Python at 1080x1920 and holds many full-res
+  # image buffers — on 1 CPU / 2GB that swapped to disk and a render could take an
+  # HOUR. 2 CPUs (faster ffmpeg encode + less contention) and 4GB (no swap) bring
+  # renders back to minutes. ~$10/mo always-on; bump cpu_kind to "performance" if
+  # still slow.
   cpu_kind = "shared"
-  cpus = 1
-  memory_mb = 2048
+  cpus = 2
+  memory_mb = 4096

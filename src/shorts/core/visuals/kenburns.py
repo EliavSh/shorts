@@ -12,6 +12,9 @@ from PIL import Image
 
 FRAME_W = 1080
 FRAME_H = 1920
+# Keep in sync with the composer's output fps. Fewer frames = less per-frame
+# Python compositing work (each frame here does a full-frame resize).
+FPS = 24
 
 
 def make_kenburns_clip(image_path: Path, *, duration_s: float,
@@ -39,7 +42,7 @@ def make_kenburns_clip(image_path: Path, *, duration_s: float,
         def frame_static(t: float) -> np.ndarray:
             return base_arr
 
-        return VideoClip(frame_static, duration=duration_s).with_fps(30)
+        return VideoClip(frame_static, duration=duration_s).with_fps(FPS)
 
     if _looks_like_chart(image_path):
         zoom_from = 1.0

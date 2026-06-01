@@ -25,6 +25,20 @@ _WORDS_PER_SECOND = 2.7
 _SECONDS_PER_BEAT = 13
 
 
+# Target clip length — keep everything around a minute (Shorts sweet spot, and
+# fewer frames = much faster moviepy renders).
+_TARGET_LO = 55
+_TARGET_HI = 68
+
+
+def _cap_length(length_band: tuple[int, int] | None) -> tuple[int, int]:
+    """Force any requested band down to the ~1-minute target window."""
+    lo, hi = length_band or (_TARGET_LO, _TARGET_HI)
+    lo = min(max(lo, _TARGET_LO), _TARGET_HI)
+    hi = min(max(hi, lo), _TARGET_HI)
+    return (lo, hi)
+
+
 def _length_guidance(length_band: tuple[int, int] | None) -> str:
     """Render the prose that tells the model how long to make the video.
 
@@ -127,6 +141,10 @@ def write_script(ctx: TopicContext, *, model: str | None = None,
 
     if length_band is None and format_hint:
         length_band = getattr(formats.get_spec(format_hint), "length_band", None)
+
+    # Keep clips ~1 minute regardless of format defaults: shorter = punchier for
+    # Shorts AND far faster to render (frame count drives moviepy cost).
+    length_band = _cap_length(length_band)
 
     client = make_anthropic()
     system_prompt = _load_system_prompt(ctx.lang, length_band)
