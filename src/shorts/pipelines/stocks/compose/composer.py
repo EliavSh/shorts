@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 
 import random
@@ -118,15 +119,33 @@ def compose_video(*, script: Script, tts: TTSResult, out_path: Path,
     video = video.with_audio(final_audio).with_duration(total_s)
 
     log.info("Writing %s ...", out_path)
-    video.write_videofile(
-        str(out_path),
-        fps=FPS,
-        codec="libx264",
-        audio_codec="aac",
-        preset="medium",
-        threads=4,
-        logger=None,
-    )
+    # Encode to a temp file, then atomically swap into place. A killed/interrupted
+    # encode (e.g. the machine sleeping mid-render) must never leave a truncated
+    # short.mp4 staged — that's what shows as a clip "frozen on the first frame"
+    # (the moov index is written last, so a cut-off file is unplayable).
+    # `+faststart` moves the moov atom to the front for reliable web streaming;
+    # `veryfast` cuts encode time ~3-5x vs `medium` (negligible quality loss for
+    # a Short) so the encode finishes well inside the machine's awake window.
+    tmp_out = out_path.with_name(out_path.stem + ".tmp.mp4")
+    try:
+        video.write_videofile(
+            str(tmp_out),
+            fps=FPS,
+            codec="libx264",
+            audio_codec="aac",
+            preset="veryfast",
+            threads=4,
+            ffmpeg_params=["-movflags", "+faststart"],
+            logger=None,
+        )
+        os.replace(tmp_out, out_path)
+    except BaseException:
+        # Don't leave a half-written temp file behind on failure/interrupt.
+        try:
+            tmp_out.unlink(missing_ok=True)
+        except Exception:
+            pass
+        raise
 
     # Write a sidecar manifest describing what was chosen — useful for the
     # `stocksreels inspect` command and for the dashboard later.
