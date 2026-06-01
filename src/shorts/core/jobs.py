@@ -22,10 +22,12 @@ from shorts.config import pipeline_data_dir
 _lock = threading.Lock()
 _MAX_JOBS_KEPT = 50
 _LOG_TAIL_BYTES = 2000
-# A render is a few minutes; anything still "running" past this was orphaned
-# (e.g. the machine auto-stopped mid-render) and should be marked failed so the
-# dashboard stops showing a forever-stuck card.
-_MAX_RUN_SECONDS = 1200
+# Backstop for orphaned jobs (machine slept and the watcher thread died, leaving
+# a forever-"running" card). This is ONLY a last resort — the dead-PID check is
+# the real signal. Keep it generous so a genuinely slow render (cold-start image
+# pull + first-time model download on a small machine) is never mislabelled as
+# failed while it's still alive and making progress.
+_MAX_RUN_SECONDS = 3600
 
 
 def _jobs_path(pipeline: str) -> Path:
