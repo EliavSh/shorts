@@ -356,7 +356,11 @@ def regen_cmd(slug: str, lang: str, note: str) -> None:
     result = regenerate_clip(slug, lang=lang, guidance=guidance)
     if result is None:
         store.mark_status(slug, "ready")
-        console.print("[red]Regeneration failed — could not recover topic context.[/red]")
+        console.print(
+            "[red]Can't improve this clip — it has no completed render on record "
+            "(it failed mid-render). Delete it (✕) and generate a fresh one "
+            "instead.[/red]"
+        )
         raise SystemExit(1)
     console.print(f"[green]Done.[/green] New version at {result.mp4_path}")
 
