@@ -172,10 +172,11 @@ def _emit_script(client, model: str, system_prompt: str, user_message: str) -> S
         model=model,
         # `beats` is the LAST field in the Script schema, so a tight ceiling
         # truncates the script's actual content first and the partial-JSON
-        # parser hands back a beats-less dict. Give ample headroom — output
-        # tokens are billed only for what's generated, so a high cap is free
-        # unless used.
-        max_tokens=8192,
+        # parser hands back a beats-less dict. A real script is ~1.5–2.5k
+        # output tokens; this leaves ~8–10x headroom so it can never truncate.
+        # Output tokens are billed only for what's generated, so a high cap is
+        # free unless used.
+        max_tokens=16384,
         system=system_prompt,
         tools=[tool],
         tool_choice={"type": "tool", "name": "emit_script"},
