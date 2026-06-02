@@ -35,19 +35,22 @@ primary_region = "fra"   # Frankfurt — closest to Israel; switch to "iad"/"sjc
 [http_service]
   internal_port = 8000
   force_https = true
-  # Always-on: Fly only watches HTTP connections for auto-stop, not CPU, so a
-  # background render on a sleeping machine gets killed mid-encode (and every
-  # render pays a cold-start tax pulling the image). Keeping one machine running
-  # eliminates both — renders complete reliably in a few minutes. ~$3-5/mo.
-  auto_stop_machines = "off"
+  # Auto-stop: the machine sleeps when idle and wakes on the next request, so you
+  # only pay while it's actually rendering/browsing (~1 hr/day). Renders stay
+  # reliable because (a) the performance VM finishes a clip in a few minutes and
+  # (b) the GitHub-Actions autopilot polls /stocks/jobs to hold the machine awake
+  # for the duration of a cron render. If renders start getting cut off again,
+  # flip auto_stop_machines back to "off" + min_machines_running = 1.
+  auto_stop_machines = "stop"
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
 
 [[vm]]
   # moviepy composites every frame in Python (single-threaded) at 1080x1920 — the
   # render bottleneck. Dedicated "performance" cores are much faster per-core than
   # throttled shared ones, and 4GB stops the swap thrashing that made renders take
-  # an hour on shared-1x/2GB. performance-2x ≈ $25-30/mo always-on.
+  # an hour on shared-1x/2GB. With auto-stop above you only pay while it runs
+  # (renders + browsing ≈ ~1 hr/day → roughly $1-4/mo), so we keep the fast VM.
   cpu_kind = "performance"
   cpus = 2
   memory_mb = 4096
