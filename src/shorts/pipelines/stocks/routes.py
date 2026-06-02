@@ -209,6 +209,45 @@ def api_jobs() -> dict:
     return {"jobs": job_mod.list_jobs(PIPELINE, limit=20)}
 
 
+@router.get("/scripts/recent")
+def scripts_recent(limit: int = 6) -> dict:
+    """Read-only dump of the most recent scripts' full narration (the rendered
+    artifacts are purged on publish, but the script rows persist in the DB)."""
+    from sqlmodel import Session, select
+
+    from .db import Render as RenderRow
+    from .db import Script as ScriptRow
+    from .db import get_engine
+
+    out = []
+    with Session(get_engine()) as session:
+        rows = session.exec(
+            select(ScriptRow).order_by(ScriptRow.id.desc()).limit(limit)
+        ).all()
+        for sr in rows:
+            p = sr.payload or {}
+            beats = p.get("beats", []) or []
+            render = session.exec(
+                select(RenderRow).where(RenderRow.script_id == sr.id)
+                .order_by(RenderRow.id.desc())
+            ).first()
+            slug = ""
+            if render and render.mp4_path:
+                # .../output/<slug>/v1/short.mp4
+                parts = render.mp4_path.replace("\\", "/").split("/output/")
+                slug = parts[1].split("/")[0] if len(parts) > 1 else ""
+            out.append({
+                "script_id": sr.id,
+                "slug": slug,
+                "title": p.get("title"),
+                "format": p.get("format"),
+                "tickers": [t.get("ticker") for t in p.get("tickers", [])],
+                "narration": " ".join(b.get("narration", "") for b in beats),
+                "beats": [{"role": b.get("role"), "text": b.get("narration")} for b in beats],
+            })
+    return {"scripts": out}
+
+
 @router.get("/video/{run_id}/v{version}")
 def serve_video(run_id: str, version: int) -> FileResponse:
     path = _store.short_path(run_id, version)

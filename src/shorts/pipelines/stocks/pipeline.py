@@ -241,7 +241,7 @@ def _run_daily_inner(*, lang: str = "en", force: bool = False) -> RunResult | No
 
     # Idempotency: have we already produced a render for today?
     if not force:
-        with Session(get_engine()) as session:
+        with Session(get_engine(), expire_on_commit=False) as session:
             existing = session.exec(
                 select(RenderRow).where(RenderRow.mp4_path.contains(today_slug))
             ).first()
@@ -258,7 +258,7 @@ def _run_daily_inner(*, lang: str = "en", force: bool = False) -> RunResult | No
     slug = _slug_from_topic(ctx, today_slug)
     set_current_video(slug)  # attribute downstream costs
 
-    with Session(get_engine()) as session:
+    with Session(get_engine(), expire_on_commit=False) as session:
         primary = ctx.candidates[0]
         secondary = ctx.candidates[1] if len(ctx.candidates) > 1 else None
         topic_row = TopicRow(
@@ -282,7 +282,7 @@ def _run_daily_inner(*, lang: str = "en", force: bool = False) -> RunResult | No
         extract_and_record(script, source_slug=slug)
     except Exception as e:
         log.warning("[%s] debt extraction failed: %s", slug, e)
-    with Session(get_engine()) as session:
+    with Session(get_engine(), expire_on_commit=False) as session:
         script_row = ScriptRow(
             topic_id=topic_row.id,
             lang=lang,
@@ -305,7 +305,7 @@ def _run_daily_inner(*, lang: str = "en", force: bool = False) -> RunResult | No
     log.info("[%s] composing video ...", slug)
     compose_video(script=script, tts=tts, out_path=mp4_path, started_at=_t0)
     duration_s = float(tts.duration_s)
-    with Session(get_engine()) as session:
+    with Session(get_engine(), expire_on_commit=False) as session:
         render_row = RenderRow(
             script_id=script_row.id,
             mp4_path=str(mp4_path),
@@ -365,7 +365,7 @@ def render_planned_item(item, *, lang: str = "en") -> RunResult | None:
     except Exception as e:  # never fail a render over debt extraction
         log.warning("[%s] debt extraction failed: %s", slug, e)
 
-    with Session(get_engine()) as session:
+    with Session(get_engine(), expire_on_commit=False) as session:
         topic_row = TopicRow(
             lang=lang,
             ticker_primary=ctx.candidates[0].ticker,
@@ -384,7 +384,7 @@ def render_planned_item(item, *, lang: str = "en") -> RunResult | None:
     compose_video(script=script, tts=tts, out_path=mp4_path, started_at=_t0)
     duration_s = float(tts.duration_s)
 
-    with Session(get_engine()) as session:
+    with Session(get_engine(), expire_on_commit=False) as session:
         render_row = RenderRow(
             script_id=script_row.id, mp4_path=str(mp4_path),
             duration_s=duration_s, audio_path=str(tts.audio_path),
@@ -420,7 +420,7 @@ def regenerate_clip(slug: str, *, lang: str = "en", guidance: str = "") -> RunRe
     init_db()
 
     # Recover the source topic + prior script from the most recent render row.
-    with Session(get_engine()) as session:
+    with Session(get_engine(), expire_on_commit=False) as session:
         render_row = session.exec(
             select(RenderRow).where(RenderRow.mp4_path.contains(slug))
             .order_by(RenderRow.id.desc())
@@ -457,7 +457,7 @@ def regenerate_clip(slug: str, *, lang: str = "en", guidance: str = "") -> RunRe
     except Exception as e:
         log.warning("[%s] debt extraction failed: %s", slug, e)
 
-    with Session(get_engine()) as session:
+    with Session(get_engine(), expire_on_commit=False) as session:
         new_script_row = ScriptRow(topic_id=topic_row.id, lang=lang, payload=script.model_dump())
         session.add(new_script_row); session.commit(); session.refresh(new_script_row)
 
@@ -467,7 +467,7 @@ def regenerate_clip(slug: str, *, lang: str = "en", guidance: str = "") -> RunRe
     compose_video(script=script, tts=tts, out_path=mp4_path, guidance=guidance, started_at=_t0)
     duration_s = float(tts.duration_s)
 
-    with Session(get_engine()) as session:
+    with Session(get_engine(), expire_on_commit=False) as session:
         render_row = RenderRow(
             script_id=new_script_row.id, mp4_path=str(mp4_path),
             duration_s=duration_s, audio_path=str(tts.audio_path),
