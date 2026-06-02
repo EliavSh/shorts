@@ -21,6 +21,8 @@ def _recent_renders(limit: int = 12) -> tuple[tuple[str, ...], tuple[str, ...]]:
     """
     formats_seen: list[str] = []
     tickers_seen: list[str] = []
+    # Staged (not-yet-published) clips: the manifest lives in the version subdir
+    # (.../<run_id>/v<n>/short.manifest.json), NOT directly under <run_id>.
     try:
         import json
 
@@ -28,14 +30,26 @@ def _recent_renders(limit: int = 12) -> tuple[tuple[str, ...], tuple[str, ...]]:
 
         rs = ReviewStore("stocks")
         for item in rs.list_items()[:limit]:
-            manifest = rs.output_root / item.run_id / "short.manifest.json"
+            ver = getattr(item, "current_version", 1) or 1
+            manifest = rs.short_path(item.run_id, ver).with_suffix(".manifest.json")
             if manifest.exists():
                 m = json.loads(manifest.read_text(encoding="utf-8"))
                 if m.get("format"):
                     formats_seen.append(m["format"])
                 tickers_seen.extend(t.get("ticker", "") for t in m.get("tickers", []))
     except Exception as e:
-        log.debug("recent_renders lookup failed: %s", e)
+        log.debug("recent_renders (staged) lookup failed: %s", e)
+    # Published clips are purged from the review store — count them too so the
+    # planner doesn't re-cover a ticker it just published (same-day de-dup).
+    try:
+        from .published import load_published
+
+        for e in load_published().entries[-limit:]:
+            if e.format:
+                formats_seen.append(e.format)
+            tickers_seen.extend(e.tickers or [])
+    except Exception as e:
+        log.debug("recent_renders (published) lookup failed: %s", e)
     return tuple(f for f in formats_seen if f), tuple(t for t in tickers_seen if t)
 
 

@@ -177,19 +177,21 @@ def write_script(ctx: TopicContext, *, model: str | None = None,
     _strengthen_hook(script, client=client, model=s.claude_director_model)
 
     # Inspector runs LAST (so it judges the final, hook-strengthened script):
-    # catches a hook that over-promises vs the body ("12 companies" then names 4)
-    # AND clearly false/misleading claims (e.g. calling a famous stock one
-    # "you've never heard of"). One corrective rewrite. Best-effort.
-    issues = _inspect_consistency(script, client=client, model=s.claude_director_model)
+    # catches a hook that over-promises vs the body, clearly false claims (a
+    # famous stock called "unknown"), AND claims NOT supported by the topic data
+    # (invented earnings timing, made-up intraday prices). One rewrite. Best-effort.
+    issues = _inspect_consistency(script, ctx, client=client, model=s.claude_director_model)
     if issues:
         log.warning("inspector flagged %s — one corrective rewrite", issues)
         note = (
             "IMPORTANT: a previous version had these credibility problems — fix "
-            "ALL of them. Either (a) the hook promises something the body doesn't "
-            "deliver — make them consistent, or (b) a claim is factually wrong or "
-            "misleading (e.g. calling a well-known company obscure). NEVER describe "
-            "a famous/mega-cap stock (NVDA, AAPL, TSM/TSMC, AMD, MSFT, …) as one "
-            "investors 'never heard of'. Problems: " + "; ".join(issues)
+            "ALL of them. (a) The hook must deliver what it promises. (b) No false "
+            "or misleading claims — NEVER call a famous/mega-cap stock (NVDA, AAPL, "
+            "TSM/TSMC, AMD, MSFT, …) one investors 'never heard of'. (c) Do NOT "
+            "state anything the topic data doesn't support — especially earnings "
+            "timing ('after earnings', 'reports next week'), specific intraday "
+            "highs, or exact valuations that aren't in the data. Problems: "
+            + "; ".join(issues)
         )
         combined = f"{guidance}\n\n{note}" if guidance else note
         try:
@@ -310,12 +312,36 @@ def _strengthen_hook(script: Script, *, client, model: str) -> None:
 
 # --- Self-consistency inspector ---------------------------------------------
 
-def _inspect_consistency(script: Script, *, client, model: str) -> list[str]:
-    """Cheap critic pass over the finished script. Flags two classes of
-    credibility-killers: (1) the hook promises something the body never delivers,
-    and (2) a clearly false or misleading factual claim. Returns short issue
-    strings (empty = clean). Best-effort — any error returns [] so a render is
-    never blocked."""
+def _context_digest(ctx) -> str:
+    """Compact, factual summary of the topic data for the critic to check claims
+    against: per-ticker % move + price, plus a few headlines and macro notes."""
+    if ctx is None:
+        return "(no data provided)"
+    lines: list[str] = []
+    for c in getattr(ctx, "candidates", []) or []:
+        price = getattr(c, "price", None)
+        chg = getattr(c, "change_pct", None)
+        bits = [f"{getattr(c, 'ticker', '?')} ({getattr(c, 'name', '')})"]
+        if chg is not None:
+            bits.append(f"{chg:+.1f}% today")
+        if price is not None:
+            bits.append(f"${price:,.2f}")
+        lines.append("- " + ", ".join(bits))
+        for h in (getattr(c, "headlines", None) or [])[:3]:
+            lines.append(f"    • {h}")
+    notes = getattr(ctx, "macro_notes", None)
+    if notes:
+        lines.append(f"macro: {notes}")
+    return "\n".join(lines) if lines else "(no data provided)"
+
+
+def _inspect_consistency(script: Script, ctx=None, *, client, model: str) -> list[str]:
+    """Cheap critic pass over the finished script, judged against the topic data.
+    Flags three classes of credibility-killers: (1) the hook promises something
+    the body never delivers, (2) a clearly false/misleading factual claim, and
+    (3) a claim NOT supported by the provided data (invented earnings timing,
+    made-up intraday prices/valuations). Returns short issue strings (empty =
+    clean). Best-effort — any error returns [] so a render is never blocked."""
     beats = getattr(script, "beats", []) or []
     if len(beats) < 3:
         return []
@@ -323,21 +349,26 @@ def _inspect_consistency(script: Script, *, client, model: str) -> list[str]:
         f"[{getattr(b, 'role', None) or 'body'}] {(b.narration or '').strip()}"
         for b in beats
     )
+    data = _context_digest(ctx)
     prompt = (
         "You are a sharp finance editor doing a final credibility check on a short "
-        "video script. Flag ONLY high-confidence, clear problems in these two "
-        "categories (ignore style, energy, and length):\n"
-        "1. PROMISE NOT KEPT — the hook sets up something the body doesn't deliver: "
-        "a count/list size that doesn't match (\"12 companies touch the chip\" but "
-        "only 4 are named), a teased subject never covered, a question with no payoff.\n"
-        "2. FALSE / MISLEADING CLAIM — something a knowledgeable investor would know "
-        "is wrong. ESPECIALLY: calling a famous, large, or household-name company "
-        "obscure or one viewers 'have never heard of' (e.g. TSMC/TSM, Nvidia, AMD, "
-        "Apple, Intel are all extremely well known — never call them unknown). Also "
-        "obvious factual howlers or self-contradictions.\n\n"
+        "video script, judged AGAINST THE DATA below. Flag ONLY high-confidence, "
+        "clear problems in these categories (ignore style, energy, and length):\n"
+        "1. PROMISE NOT KEPT — the hook sets up something the body doesn't deliver "
+        "(\"12 companies touch the chip\" but only 4 are named; a teased subject "
+        "never covered; a question with no payoff).\n"
+        "2. FALSE / MISLEADING CLAIM — something a knowledgeable investor knows is "
+        "wrong. ESPECIALLY calling a famous/household-name company (TSMC/TSM, "
+        "Nvidia, AMD, Apple, Intel…) obscure or one viewers 'have never heard of'. "
+        "Also obvious howlers or self-contradictions.\n"
+        "3. UNSUPPORTED BY DATA — a specific claim the data below does NOT support: "
+        "earnings timing ('after earnings', 'reports next week'), a precise intraday "
+        "high, an exact valuation/market cap, or a catalyst/reason — when nothing in "
+        "the data or headlines backs it. The day's % move and price are given; "
+        "anything beyond them that isn't in the headlines is likely invented.\n\n"
         "If the script is clean, return an empty list.\n"
         "Respond with ONLY JSON: {\"issues\": [\"<short problem>\", ...]}\n\n"
-        f"Script beats:\n{transcript}"
+        f"DATA:\n{data}\n\nScript beats:\n{transcript}"
     )
     try:
         resp = client.messages.create(
