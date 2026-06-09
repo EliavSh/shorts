@@ -44,4 +44,28 @@ write_b64_secret STOCKS_YOUTUBE_TOKEN_JSON_B64  /app/secrets/stocks_youtube_toke
 write_b64_secret BRAWL_YOUTUBE_CLIENT_JSON_B64  /app/secrets/brawl_youtube_client.json
 write_b64_secret BRAWL_YOUTUBE_TOKEN_JSON_B64   /app/secrets/brawl_youtube_token.json
 
+# ── Apartment scanner background services ────────────────────────────────────
+# The scanner's SQLite DB + Playwright sessions live on the Fly volume.
+mkdir -p /app/data/apartments/sessions
+
+# Telegram bot (long-polling) — only if credentials are present. It also sends a
+# startup message with the public URL (PUBLIC_URL env).
+if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+    echo "[entrypoint] starting apartment Telegram bot"
+    python -m scanner.bot.telegram_bot &
+else
+    echo "[entrypoint] TELEGRAM_* not set — apartment bot not started"
+fi
+
+# Hourly scraper loop (best-effort; a failed cycle never kills the loop).
+echo "[entrypoint] starting apartment scraper cron loop (hourly)"
+(
+    while true; do
+        sleep 3600
+        echo "[apartments-cron] running cron_scrape"
+        python /app/apartments/scripts/cron_scrape.py >/dev/null 2>&1 \
+            || echo "[apartments-cron] cycle failed, continuing"
+    done
+) &
+
 exec "$@"

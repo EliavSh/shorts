@@ -55,6 +55,22 @@ except ImportError:
     pass
 
 
+# ---------------------------------------------------------------------------
+# Apartment scanner — a full React SPA + FastAPI app, mounted as a sub-app under
+# /apartments (not a Jinja router like the pipelines above). It has no
+# ReviewStore, so it's tracked separately for the home-page tab.
+# ---------------------------------------------------------------------------
+
+_apartments_mounted = False
+try:
+    from scanner.api.app import app as _apartment_app
+    app.mount("/apartments", _apartment_app)
+    _apartments_mounted = True
+except Exception as exc:  # noqa: BLE001 — never let apartments break the dashboard
+    import logging
+    logging.getLogger("dashboard").warning("apartments app not mounted: %s", exc)
+
+
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request) -> Any:
     # Summarise each pipeline's queue for the landing page.
@@ -83,5 +99,5 @@ def home(request: Request) -> Any:
         })
 
     return templates.TemplateResponse(
-        request, "home.html", {"pipelines": rows},
+        request, "home.html", {"pipelines": rows, "apartments": _apartments_mounted},
     )

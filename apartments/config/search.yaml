@@ -1,0 +1,51 @@
+# Search criteria for apartment hunting alerts
+
+search_criteria:
+  # Cities to search (Hebrew names) — must match keys in CITY_CODES in nadlan.py
+  cities:
+    # Gush Dan core
+    - תל אביב
+    - רמת גן
+    - גבעתיים
+    - בני ברק
+    - בת ים
+    - חולון
+    - קריית אונו
+    - גני תקווה
+    # Sharon / Center
+    - הרצליה
+    - כפר סבא
+    - רעננה
+    - הוד השרון
+    - ראש העין
+    - נס ציונה
+    - ראשון לציון
+    - רחובות
+    - מודיעין
+    # South
+    - אשדוד
+    - אשקלון
+    # North
+    - חיפה
+    - נתניה
+
+  # Number of rooms
+  rooms:
+    min: 3
+    max: 5
+
+  # Price range (NIS)
+  price:
+    min: 0
+    max: 3000000
+
+  # Price per square meter threshold
+  price_per_sqm:
+    max: 30000
+
+  # Alert only for listings under market price (%)
+  under_market_threshold_percent: 10  # 10% below neighborhood median
+
+  # Search polygon (optional, for more precise geo filtering)
+  # Example: specific neighborhoods instead of entire city
+  neighborhoods: []

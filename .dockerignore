@@ -13,6 +13,11 @@
 data/
 archive/
 
+# Apartment frontend: node_modules + prior dist are rebuilt in the Docker stage
+apartments/frontend/node_modules/
+apartments/frontend/dist/
+apartments/**/data/
+
 # Secrets never go in the image — injected as Fly secrets at runtime
 .env
 .env.*

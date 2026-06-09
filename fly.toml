@@ -35,15 +35,14 @@ primary_region = "fra"   # Frankfurt — closest to Israel; switch to "iad"/"sjc
 [http_service]
   internal_port = 8000
   force_https = true
-  # Auto-stop: the machine sleeps when idle and wakes on the next request, so you
-  # only pay while it's actually rendering/browsing (~1 hr/day). Renders stay
-  # reliable because (a) the performance VM finishes a clip in a few minutes and
-  # (b) the GitHub-Actions autopilot polls /stocks/jobs to hold the machine awake
-  # for the duration of a cron render. If renders start getting cut off again,
-  # flip auto_stop_machines back to "off" + min_machines_running = 1.
-  auto_stop_machines = "stop"
+  # Always-on (changed from auto-stop): the apartment-scanner Telegram bot keeps a
+  # long-polling connection open and its scraper fires hourly inside the container,
+  # so the machine can't be allowed to sleep. This raises cost vs. the old
+  # sleep-when-idle model (≈$5–15/mo for a 24/7 performance VM). If the apartments
+  # tab is ever removed, revert to auto_stop_machines="stop" + min_machines_running=0.
+  auto_stop_machines = "off"
   auto_start_machines = true
-  min_machines_running = 0
+  min_machines_running = 1
 
 [[vm]]
   # moviepy composites every frame in Python (single-threaded) at 1080x1920 — the
