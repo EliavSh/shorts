@@ -1,19 +1,13 @@
-# Pinned for reproducible builds. Regenerate by re-running pip-compile pyproject.toml.
-httpx[http2]==0.28.1
-playwright==1.58.0
-playwright-stealth==2.0.3
-pydantic==2.13.3
-sqlite-utils==3.39
-python-telegram-bot==22.7
-pandas==3.0.2
-pyarrow==24.0.0
-tenacity==9.1.4
-rapidfuzz==3.14.5
-shapely==2.1.2
-pyyaml==6.0.3
-python-dateutil==2.9.0.post0
-aiofiles==25.1.0
-click==8.3.3
-python-dotenv
-fastapi==0.136.1
-uvicorn[standard]==0.46.0
+# Only the deps the shorts project doesn't already install via its own pyproject.
+# fastapi, uvicorn, httpx, pydantic, click, pyyaml, tenacity, python-dotenv,
+# python-dateutil and pandas all come from shorts (directly or transitively);
+# re-pinning them here only risks pip resolver conflicts (a hard pandas==3.0.2
+# pin in particular clashed with shorts' yfinance/matplotlib).
+#
+# Unused-by-the-scanner deps removed to shrink the image: pyarrow, aiofiles,
+# shapely, rapidfuzz (verified not imported anywhere in scanner/).
+playwright>=1.40.0
+playwright-stealth>=1.0.1
+sqlite-utils>=3.35.0
+python-telegram-bot>=20.0
+pandas>=2.0
