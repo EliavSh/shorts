@@ -28,6 +28,30 @@ def _ensure_schema():
     init_schema(get_database())
 
 
+def _init_schema_now() -> None:
+    """Initialize the DB schema at import time.
+
+    When this app is mounted as a sub-application (e.g. under /apartments in the
+    shorts dashboard), Starlette does NOT fire its startup events — so the
+    on_event hook above never runs. Without schema init a fresh DB has no tables
+    and endpoints like /api/meta/health raise "no such table: run_history",
+    leaving the UI's heartbeat stuck on "loading…". Running it here guarantees
+    the tables exist regardless of how the app is hosted.
+    """
+    try:
+        from scanner.api.deps import DEFAULT_DB_PATH
+
+        Path(DEFAULT_DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+        init_schema(get_database())
+    except Exception as exc:  # pragma: no cover — never block app import
+        import logging
+
+        logging.getLogger("scanner.api").warning("schema init at import failed: %s", exc)
+
+
+_init_schema_now()
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
