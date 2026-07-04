@@ -65,8 +65,11 @@ RUN pip install --no-cache-dir -r apartments/requirements.txt
 # system libraries Chromium needs on slim Debian.
 RUN python -m playwright install chromium --with-deps
 
-# scanner package (importable via PYTHONPATH=/app), its config, and the built SPA
+# scanner package (importable via PYTHONPATH=/app), its scripts, config, and SPA.
+# scripts/ lands at /app/scripts so `python -m scripts.cron_scrape` resolves —
+# that's how the Telegram bot's /scrape command and the hourly cron invoke it.
 COPY apartments/scanner/ ./scanner/
+COPY apartments/scripts/ ./scripts/
 COPY apartments/config/ ./config/apartments/
 COPY --from=apartments-frontend /frontend/dist ./apartments/frontend/dist
 

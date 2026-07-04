@@ -63,7 +63,7 @@ echo "[entrypoint] starting apartment scraper cron loop (hourly)"
     while true; do
         sleep 3600
         echo "[apartments-cron] running cron_scrape"
-        python /app/apartments/scripts/cron_scrape.py >/dev/null 2>&1 \
+        (cd /app && python -m scripts.cron_scrape) >/dev/null 2>&1 \
             || echo "[apartments-cron] cycle failed, continuing"
     done
 ) &
