@@ -25,6 +25,11 @@ WORKDIR /app
 #   git        — needed by some pip pkgs (whisper)
 #   libsndfile1, libsndfile1-dev — librosa/soundfile audio decode
 #   curl       — healthchecks
+#   xvfb, x11vnc, websockify, novnc — apartment scanner's remote CAPTCHA-solve
+#     flow (scanner/scrapers/captcha_vnc.py): a headed browser runs on a virtual
+#     display (Xvfb) and is streamed to the user's phone over noVNC so they can
+#     solve a Yad2/Madlan CAPTCHA. novnc installs its web assets to
+#     /usr/share/novnc (matches NOVNC_WEB in captcha_vnc.py).
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ffmpeg \
       git \
@@ -32,7 +37,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libsndfile1 \
       libsndfile1-dev \
       ca-certificates \
+      xvfb \
+      x11vnc \
+      websockify \
+      novnc \
   && rm -rf /var/lib/apt/lists/*
+
+# cloudflared — quick tunnel that exposes the noVNC port to a public
+# trycloudflare.com URL for the remote CAPTCHA-solve flow. Not in apt, so fetch
+# the static binary (github.com is reachable from Fly's remote builder).
+RUN curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
+      -o /usr/local/bin/cloudflared \
+  && chmod +x /usr/local/bin/cloudflared
 
 COPY pyproject.toml README.md ./
 COPY src/ src/
