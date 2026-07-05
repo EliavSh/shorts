@@ -37,6 +37,11 @@ export function FilterBar({
 }: Props) {
   // Sale prices step in ₪100k; monthly rents step in ₪500.
   const priceStep = showDeals ? 100_000 : 500;
+  // Sale filters base price; rent filters the *total* monthly cost
+  // (rent + ועד בית + ארנונה).
+  const isRent = !showDeals;
+  const minKey: "min_price" | "min_total" = isRent ? "min_total" : "min_price";
+  const maxKey: "max_price" | "max_total" = isRent ? "max_total" : "max_price";
   const neighborhoods = useQuery({
     queryKey: ["neighborhoods", filters.city ?? null],
     queryFn: () => fetchNeighborhoods(filters.city),
@@ -132,18 +137,18 @@ export function FilterBar({
           />
         </label>
         <label>
-          <span className="text-slate-400">{showDeals ? "Min price" : "Min ₪/mo"}</span>
+          <span className="text-slate-400">{showDeals ? "Min price" : "Min total ₪/mo"}</span>
           <input
-            type="number" step={priceStep} value={filters.min_price ?? ""}
-            onChange={(e) => onChange({ min_price: e.target.value ? Number(e.target.value) : undefined })}
+            type="number" step={priceStep} value={filters[minKey] ?? ""}
+            onChange={(e) => onChange({ [minKey]: e.target.value ? Number(e.target.value) : undefined })}
             className="mt-1 w-full rounded bg-slate-800 border border-slate-700 px-2 py-2"
           />
         </label>
         <label>
-          <span className="text-slate-400">{showDeals ? "Max price" : "Max ₪/mo"}</span>
+          <span className="text-slate-400">{showDeals ? "Max price" : "Max total ₪/mo"}</span>
           <input
-            type="number" step={priceStep} value={filters.max_price ?? ""}
-            onChange={(e) => onChange({ max_price: e.target.value ? Number(e.target.value) : undefined })}
+            type="number" step={priceStep} value={filters[maxKey] ?? ""}
+            onChange={(e) => onChange({ [maxKey]: e.target.value ? Number(e.target.value) : undefined })}
             className="mt-1 w-full rounded bg-slate-800 border border-slate-700 px-2 py-2"
           />
         </label>
@@ -226,6 +231,8 @@ export function FilterBar({
               max_rooms: undefined,
               min_price: undefined,
               max_price: undefined,
+              min_total: undefined,
+              max_total: undefined,
               include_new_construction: true,
               only_new_construction: false,
               restrict_to_zones: false,

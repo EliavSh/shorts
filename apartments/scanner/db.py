@@ -102,6 +102,12 @@ def init_schema(db: sqlite_utils.Database) -> None:
         if "deal_type" not in cols:
             db.execute("ALTER TABLE listings ADD COLUMN deal_type TEXT DEFAULT 'sale'")
             db.execute("UPDATE listings SET deal_type = 'sale' WHERE deal_type IS NULL")
+        # Rent extras (monthly ₪): house-committee (ועד בית) + arnona (ארנונה).
+        # Only on yad2 item pages, so nullable — NULL = "not provided".
+        if "vaad_bayit" not in cols:
+            db.execute("ALTER TABLE listings ADD COLUMN vaad_bayit INTEGER")
+        if "arnona" not in cols:
+            db.execute("ALTER TABLE listings ADD COLUMN arnona INTEGER")
     except Exception:
         pass
 

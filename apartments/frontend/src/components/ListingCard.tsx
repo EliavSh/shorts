@@ -1,5 +1,5 @@
 import type { ListingWithScore } from "@/types";
-import { fmtDistance, fmtPrice, fmtPpsqm, fmtPercent } from "@/services/format";
+import { fmtDistance, fmtAmount, fmtPpsqm, fmtPercent } from "@/services/format";
 
 interface Props {
   listing: ListingWithScore;
@@ -31,7 +31,7 @@ export function ListingCard({ listing, selected, onSelect, distanceM }: Props) {
       <div className="flex items-baseline justify-between gap-2">
         <span className="font-semibold text-slate-100 truncate">{listing.address ?? "—"}</span>
         <span className="text-sm text-slate-300 whitespace-nowrap">
-          {fmtPrice(listing.price)}{isRent && <span className="text-slate-500">/mo</span>}
+          {fmtAmount(listing.price, listing.deal_type)}{isRent && <span className="text-slate-500">/mo</span>}
         </span>
       </div>
       <div className="mt-1 flex justify-between text-xs text-slate-400">

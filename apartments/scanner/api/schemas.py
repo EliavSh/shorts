@@ -26,6 +26,8 @@ class Listing(BaseModel):
     has_balcony: Optional[bool] = None
     direction: Optional[str] = None
     deal_type: Optional[str] = None
+    vaad_bayit: Optional[int] = None
+    arnona: Optional[int] = None
 
 
 class ListingScore(BaseModel):

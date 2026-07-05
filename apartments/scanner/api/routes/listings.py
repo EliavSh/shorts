@@ -23,6 +23,9 @@ def list_listings(
     max_rooms: Optional[float] = None,
     min_price: Optional[int] = None,
     max_price: Optional[int] = None,
+    # Total monthly cost = price + house-committee + arnona (rent mode budget).
+    min_total: Optional[int] = None,
+    max_total: Optional[int] = None,
     only_active: bool = True,
     include_new_construction: bool = True,
     only_new_construction: bool = False,
@@ -71,6 +74,14 @@ def list_listings(
     if max_price is not None:
         where.append("l.price <= ?")
         params.append(max_price)
+    # Total = base price + monthly extras (NULLs treated as 0).
+    _total_sql = "(l.price + COALESCE(l.vaad_bayit, 0) + COALESCE(l.arnona, 0))"
+    if min_total is not None:
+        where.append(f"{_total_sql} >= ?")
+        params.append(min_total)
+    if max_total is not None:
+        where.append(f"{_total_sql} <= ?")
+        params.append(max_total)
 
     order_sql = "ORDER BY l.last_seen DESC"
     if near_lat is not None and near_lon is not None:

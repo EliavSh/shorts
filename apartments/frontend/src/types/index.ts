@@ -22,6 +22,8 @@ export interface Listing {
   has_balcony?: boolean | null;
   direction?: string | null;
   deal_type?: "sale" | "rent" | null;
+  vaad_bayit?: number | null;
+  arnona?: number | null;
 }
 
 export type DealType = "sale" | "rent";
@@ -94,6 +96,9 @@ export interface Filters {
   max_rooms?: number;
   min_price?: number;
   max_price?: number;
+  // Rent-mode budget filter: total monthly cost = rent + ועד בית + ארנונה.
+  min_total?: number;
+  max_total?: number;
   include_new_construction?: boolean;  // default true
   only_new_construction?: boolean;
   restrict_to_zones?: boolean;

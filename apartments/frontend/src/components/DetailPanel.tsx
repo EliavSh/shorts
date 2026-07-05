@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchListing, fetchPercentile } from "@/api/listings";
 import { fetchBuildingHistory, fetchPriceHistory } from "@/api/charts";
-import { fmtPercent, fmtPpsqm, fmtPrice } from "@/services/format";
+import { fmtPercent, fmtPpsqm, fmtAmount, fmtMoney } from "@/services/format";
 import { PriceHistoryChart } from "@/components/PriceHistoryChart";
 import { BuildingHistoryChart } from "@/components/BuildingHistoryChart";
 
@@ -45,6 +45,12 @@ export function DetailPanel({ listingId, onClose }: Props) {
   });
 
   const l = listing.data;
+  const isRent = l?.deal_type === "rent";
+  // Total monthly cost for rentals = rent + house committee + arnona.
+  const rentTotal =
+    l && isRent
+      ? (l.price ?? 0) + (l.vaad_bayit ?? 0) + (l.arnona ?? 0)
+      : null;
   const balconyText =
     l?.has_balcony == null ? null : l.has_balcony ? "Yes" : "No";
   const constructionText =
@@ -80,20 +86,31 @@ export function DetailPanel({ listingId, onClose }: Props) {
         </div>
       )}
 
-      {/* Core specs (always available for any listing) */}
+      {/* Core specs. Rent shows the monthly-cost breakdown; sale shows ₪/m² + gap. */}
       {l && (
         <dl className="grid grid-cols-2 gap-y-1 text-sm">
-          <FieldRow label="Price" value={fmtPrice(l.price)} />
-          <FieldRow label="₪/m²" value={fmtPpsqm(l.price_per_sqm)} />
+          <FieldRow label={isRent ? "Rent /mo" : "Price"} value={fmtAmount(l.price, l.deal_type)} />
           <FieldRow label="Rooms" value={l.rooms} />
           <FieldRow label="Sqm" value={l.sqm} />
           <FieldRow label="City" value={l.city} />
-          <FieldRow label="Gap" value={fmtPercent(l.score?.gap_percent, true)} />
+          {isRent ? (
+            <>
+              <FieldRow label="ועד בית /mo" value={l.vaad_bayit != null ? fmtMoney(l.vaad_bayit) : null} />
+              <FieldRow label="ארנונה /mo" value={l.arnona != null ? fmtMoney(l.arnona) : null} />
+              <FieldRow label="Total /mo" value={rentTotal ? fmtMoney(rentTotal) : null} />
+            </>
+          ) : (
+            <>
+              <FieldRow label="₪/m²" value={fmtPpsqm(l.price_per_sqm)} />
+              <FieldRow label="Gap" value={fmtPercent(l.score?.gap_percent, true)} />
+            </>
+          )}
         </dl>
       )}
 
-      {/* Dual-scope explainer: gap-tier + near (street-level) + area (rooms cohort). */}
-      {l && (
+      {/* Dual-scope explainer: gap-tier + near (street-level) + area (rooms cohort).
+          Sale-only — rentals have no recorded-transaction comparison. */}
+      {l && !isRent && (
         <div className="mt-3 rounded border border-slate-800 p-3 space-y-2 text-sm">
           <div className="flex items-center gap-2">
             <span
@@ -175,7 +192,7 @@ export function DetailPanel({ listingId, onClose }: Props) {
           <PriceHistoryChart events={priceHistory.data} />
         </div>
       )}
-      {buildingHistory.data && (
+      {buildingHistory.data && !isRent && (
         <div className="mt-4 rounded border border-slate-800 p-3">
           <div className="mb-2 flex items-center justify-between">
             <div className="text-sm text-slate-400">
