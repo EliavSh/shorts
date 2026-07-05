@@ -21,7 +21,10 @@ export interface Listing {
   is_new_construction?: boolean | null;
   has_balcony?: boolean | null;
   direction?: string | null;
+  deal_type?: "sale" | "rent" | null;
 }
+
+export type DealType = "sale" | "rent";
 
 export interface ListingScore {
   listing_id: string;
@@ -82,6 +85,9 @@ export interface DealCard {
 }
 
 export interface Filters {
+  // Sale (asking prices) vs rent (monthly rent) — the top-level mode. Defaults
+  // to "sale" server-side when omitted.
+  deal_type?: DealType;
   city?: string;
   neighborhood?: string;
   min_rooms?: number;

@@ -19,6 +19,9 @@ interface Props {
   /** Optional badge showing how many of the currently-loaded listings are
    *  top-deals (≥10 % below market) — surfaced next to the toggle. */
   topDealsCount?: number;
+  /** Sale-only affordances (deals preset, pinui-binui zones). Hidden in rent
+   *  mode, which is listings-only. */
+  showDeals?: boolean;
 }
 
 export function FilterBar({
@@ -30,7 +33,10 @@ export function FilterBar({
   onSetSearchCenter,
   firstHandCount,
   topDealsCount,
+  showDeals = true,
 }: Props) {
+  // Sale prices step in ₪100k; monthly rents step in ₪500.
+  const priceStep = showDeals ? 100_000 : 500;
   const neighborhoods = useQuery({
     queryKey: ["neighborhoods", filters.city ?? null],
     queryFn: () => fetchNeighborhoods(filters.city),
@@ -126,17 +132,17 @@ export function FilterBar({
           />
         </label>
         <label>
-          <span className="text-slate-400">Min price</span>
+          <span className="text-slate-400">{showDeals ? "Min price" : "Min ₪/mo"}</span>
           <input
-            type="number" step={100_000} value={filters.min_price ?? ""}
+            type="number" step={priceStep} value={filters.min_price ?? ""}
             onChange={(e) => onChange({ min_price: e.target.value ? Number(e.target.value) : undefined })}
             className="mt-1 w-full rounded bg-slate-800 border border-slate-700 px-2 py-2"
           />
         </label>
         <label>
-          <span className="text-slate-400">Max price</span>
+          <span className="text-slate-400">{showDeals ? "Max price" : "Max ₪/mo"}</span>
           <input
-            type="number" step={100_000} value={filters.max_price ?? ""}
+            type="number" step={priceStep} value={filters.max_price ?? ""}
             onChange={(e) => onChange({ max_price: e.target.value ? Number(e.target.value) : undefined })}
             className="mt-1 w-full rounded bg-slate-800 border border-slate-700 px-2 py-2"
           />
@@ -148,23 +154,25 @@ export function FilterBar({
         <div className="text-xs uppercase tracking-wide text-slate-500">
           Quick presets
         </div>
-        <label className="flex items-center gap-2 min-h-[44px] rounded-lg bg-emerald-900/30 px-3 border border-emerald-900/40">
-          <input
-            type="checkbox"
-            checked={!!filters.top_deals_only}
-            onChange={(e) => onChange({ top_deals_only: e.target.checked })}
-            className="h-5 w-5"
-          />
-          <div className="flex-1">
-            <div className="text-sm font-medium text-slate-100">🔥 Top deals only</div>
-            <div className="text-xs text-slate-400">≥ 10 % below market, sorted by gap</div>
-          </div>
-          {topDealsCount != null && (
-            <span className="rounded-full bg-emerald-900/60 px-2 py-0.5 text-xs font-medium text-emerald-100">
-              {topDealsCount}
-            </span>
-          )}
-        </label>
+        {showDeals && (
+          <label className="flex items-center gap-2 min-h-[44px] rounded-lg bg-emerald-900/30 px-3 border border-emerald-900/40">
+            <input
+              type="checkbox"
+              checked={!!filters.top_deals_only}
+              onChange={(e) => onChange({ top_deals_only: e.target.checked })}
+              className="h-5 w-5"
+            />
+            <div className="flex-1">
+              <div className="text-sm font-medium text-slate-100">🔥 Top deals only</div>
+              <div className="text-xs text-slate-400">≥ 10 % below market, sorted by gap</div>
+            </div>
+            {topDealsCount != null && (
+              <span className="rounded-full bg-emerald-900/60 px-2 py-0.5 text-xs font-medium text-emerald-100">
+                {topDealsCount}
+              </span>
+            )}
+          </label>
+        )}
         <label className="flex items-center gap-2 min-h-[44px] rounded-lg bg-blue-900/30 px-3 border border-blue-900/40">
           <input
             type="checkbox"
@@ -194,15 +202,17 @@ export function FilterBar({
           />
           <span>Include new-construction listings</span>
         </label>
-        <label className="flex items-center gap-2 min-h-[36px]">
-          <input
-            type="checkbox"
-            checked={!!filters.restrict_to_zones}
-            onChange={(e) => onChange({ restrict_to_zones: e.target.checked })}
-            className="h-5 w-5"
-          />
-          <span>Only listings inside Pinui Binui zones (~80 m)</span>
-        </label>
+        {showDeals && (
+          <label className="flex items-center gap-2 min-h-[36px]">
+            <input
+              type="checkbox"
+              checked={!!filters.restrict_to_zones}
+              onChange={(e) => onChange({ restrict_to_zones: e.target.checked })}
+              className="h-5 w-5"
+            />
+            <span>Only listings inside Pinui Binui zones (~80 m)</span>
+          </label>
+        )}
       </div>
 
       <div className="pt-3 border-t border-slate-800">

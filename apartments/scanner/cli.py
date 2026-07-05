@@ -51,6 +51,12 @@ def cli():
     help="Full historical or incremental (new only)",
 )
 @click.option(
+    "--deal-type",
+    type=click.Choice(["sale", "rent"]),
+    default="sale",
+    help="yad2 only: scrape sale (asking prices) or rent (monthly rent) listings",
+)
+@click.option(
     "--cities",
     multiple=True,
     default=["תל אביב", "רמת גן", "גבעתיים"],
@@ -66,7 +72,7 @@ def cli():
     default="data/raw",
     help="Directory to save raw JSON snapshots",
 )
-def scrape(source: str, mode: str, cities, db_path: str, raw_snapshots: str):
+def scrape(source: str, mode: str, deal_type: str, cities, db_path: str, raw_snapshots: str):
     """Scrape apartment data."""
     db_path = Path(db_path)
     raw_snapshots = Path(raw_snapshots)
@@ -171,8 +177,10 @@ def scrape(source: str, mode: str, cities, db_path: str, raw_snapshots: str):
 
     elif source == "yad2":
         try:
-            logger.info("Scraping Yad2 listings via Playwright")
-            listings = asyncio.run(scrape_yad2_listings(raw_snapshot_dir=raw_snapshots))
+            logger.info(f"Scraping Yad2 listings via Playwright [{deal_type}]")
+            listings = asyncio.run(
+                scrape_yad2_listings(raw_snapshot_dir=raw_snapshots, deal_type=deal_type)
+            )
             if listings:
                 count = upsert_listings(db, listings)
                 logger.info(f"Inserted/updated {count} listings")

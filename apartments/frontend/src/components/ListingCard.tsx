@@ -10,6 +10,7 @@ interface Props {
 }
 
 export function ListingCard({ listing, selected, onSelect, distanceM }: Props) {
+  const isRent = listing.deal_type === "rent";
   const gap = listing.score?.gap_percent;
   const gapClass =
     gap == null
@@ -29,13 +30,16 @@ export function ListingCard({ listing, selected, onSelect, distanceM }: Props) {
     >
       <div className="flex items-baseline justify-between gap-2">
         <span className="font-semibold text-slate-100 truncate">{listing.address ?? "—"}</span>
-        <span className="text-sm text-slate-300 whitespace-nowrap">{fmtPrice(listing.price)}</span>
+        <span className="text-sm text-slate-300 whitespace-nowrap">
+          {fmtPrice(listing.price)}{isRent && <span className="text-slate-500">/mo</span>}
+        </span>
       </div>
       <div className="mt-1 flex justify-between text-xs text-slate-400">
         <span>
-          {listing.rooms ?? "—"} rooms · {listing.sqm ?? "—"} m² · {fmtPpsqm(listing.price_per_sqm)}
+          {listing.rooms ?? "—"} rooms · {listing.sqm ?? "—"} m²
+          {!isRent && <> · {fmtPpsqm(listing.price_per_sqm)}</>}
         </span>
-        <span className={gapClass}>{fmtPercent(gap, true)}</span>
+        {!isRent && <span className={gapClass}>{fmtPercent(gap, true)}</span>}
       </div>
       {distanceM != null && (
         <div className="mt-0.5 text-xs text-slate-500">

@@ -12,10 +12,13 @@ import { DesktopLayout } from "@/layouts/DesktopLayout";
 import { MobileLayout } from "@/layouts/MobileLayout";
 import { isMobile as detectMobile } from "@/services/platform";
 import { haversineMeters } from "@/services/format";
+import type { DealType } from "@/types";
 
-export function MapPage() {
+export function MapPage({ mode = "sale" }: { mode?: DealType }) {
   const mobile = useIsMobileReactive();
   const { filters, update } = useFilters();
+  // Deal/sold analysis only exists for sale listings; rent is listings-only.
+  const dealsEnabled = mode === "sale";
   const [gpsEnabled, setGpsEnabled] = useState<boolean>(() => detectMobile());
   const [follow, setFollow] = useState(true);
   const [zonesVisible, setZonesVisible] = useState(true);
@@ -42,7 +45,7 @@ export function MapPage() {
         near_radius_m: mobile ? 3000 : 5000,
       }
     : {};
-  const listings = useListings(filters, spatial);
+  const listings = useListings({ ...filters, deal_type: mode }, spatial);
   const zonesQuery = useZones(spatial);
 
   // Compute distances once, drive both sort and per-card display.
@@ -62,7 +65,7 @@ export function MapPage() {
   //   - Top deals preset overrides everything: order by gap ascending.
   //   - Otherwise, if we have a center, sort closest first.
   const filteredListings = (() => {
-    if (filters.top_deals_only) {
+    if (dealsEnabled && filters.top_deals_only) {
       return withDistance
         .filter((l) => l.score?.gap_percent != null && l.score.gap_percent <= -10)
         .slice()
@@ -104,7 +107,7 @@ export function MapPage() {
       selectedId={selected}
       follow={follow}
       onFollowChange={setFollow}
-      defaultZoom={mobile ? 17 : 15}
+      defaultZoom={mobile ? 13 : 12}
       trackingZoom={mobile ? 17 : undefined}
       isMobile={mobile}
     />
@@ -133,6 +136,7 @@ export function MapPage() {
       }}
       firstHandCount={firstHandCount}
       topDealsCount={topDealsCount}
+      showDeals={dealsEnabled}
     />
   );
   const list = (
@@ -162,11 +166,12 @@ export function MapPage() {
   const isLoading = listings.isLoading || (listings.isFetching && !listings.data);
 
   const visibleCount = filteredListings.length;
-  const listingsSummary = filters.top_deals_only
+  const noun = mode === "rent" ? "rentals" : "listings";
+  const listingsSummary = dealsEnabled && filters.top_deals_only
     ? `🔥 ${visibleCount} deals (sorted by gap)`
     : visibleCount === 0
-    ? "No listings — adjust filters"
-    : `${visibleCount.toLocaleString()} listings on screen`;
+    ? `No ${noun} — adjust filters`
+    : `${visibleCount.toLocaleString()} ${noun} on screen`;
 
   if (mobile) {
     return (

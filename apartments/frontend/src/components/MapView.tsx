@@ -335,10 +335,9 @@ export function MapView({
 }: Props) {
   const center: [number, number] = useMemo(() => {
     if (gps) return [gps.lat, gps.lon];
-    const withCoords = listings.find((l) => l.lat && l.lon);
-    if (withCoords) return [withCoords.lat!, withCoords.lon!];
-    return [32.0853, 34.7818]; // Tel Aviv
-  }, [listings, gps]);
+    // Default focus: the Herzliya–Tel Aviv corridor (the area of interest).
+    return [32.12, 34.82];
+  }, [gps]);
 
   return (
     <div className="relative h-full w-full isolate">

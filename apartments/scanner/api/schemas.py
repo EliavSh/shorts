@@ -25,6 +25,7 @@ class Listing(BaseModel):
     is_new_construction: Optional[bool] = None
     has_balcony: Optional[bool] = None
     direction: Optional[str] = None
+    deal_type: Optional[str] = None
 
 
 class ListingScore(BaseModel):

@@ -23,6 +23,11 @@ logger = logging.getLogger(__name__)
 # Yad2 map API — returns up to 200 markers per bounding box
 YAD2_MAP_API = "https://gw.yad2.co.il/realestate-feed/forsale/map"
 
+# Yad2 uses distinct URL slugs + dealType codes for sale vs rent. The rest of
+# the scrape (map tiles, pageProps extraction, normalisation) is identical.
+DEAL_FEEDS = {"sale": "forsale", "rent": "rent"}
+DEAL_PARAM = {"sale": "1", "rent": "2"}
+
 # Israel bounding box tiles (lat_min, lon_min, lat_max, lon_max)
 # Split into 9 tiles to stay under 200-marker limit per tile
 ISRAEL_TILES = [
@@ -58,8 +63,12 @@ BROWSER_HEADERS = {
 class Yad2Scraper:
     """Scrape apartment listings from Yad2."""
 
-    def __init__(self, raw_snapshot_dir: Path | None = None):
+    def __init__(self, raw_snapshot_dir: Path | None = None, deal_type: str = "sale"):
         self.raw_snapshot_dir = raw_snapshot_dir
+        self.deal_type = deal_type if deal_type in DEAL_FEEDS else "sale"
+        self.feed = DEAL_FEEDS[self.deal_type]           # "forsale" | "rent"
+        self.deal_param = DEAL_PARAM[self.deal_type]      # "1" | "2"
+        self.map_api = f"https://gw.yad2.co.il/realestate-feed/{self.feed}/map"
 
     async def scrape(
         self,
@@ -111,9 +120,9 @@ class Yad2Scraper:
         ) as client:
             for i, (lat_min, lon_min, lat_max, lon_max) in enumerate(ISRAEL_TILES):
                 bbox = f"{lat_min},{lon_min},{lat_max},{lon_max}"
-                params = {"bBox": bbox, "propertyGroup": "apartments", "dealType": "1"}
+                params = {"bBox": bbox, "propertyGroup": "apartments", "dealType": self.deal_param}
                 try:
-                    resp = await client.get(YAD2_MAP_API, params=params)
+                    resp = await client.get(self.map_api, params=params)
                 except httpx.RequestError as e:
                     logger.error(f"Map API tile {i} request error: {e}")
                     continue
@@ -173,7 +182,7 @@ class Yad2Scraper:
         all_listings: list[dict] = []
         # Use city code to get search results page (not lobby)
         city_code = getattr(self, "_city_code", 5000)
-        search_url = f"https://www.yad2.co.il/realestate/forsale?city={city_code}"
+        search_url = f"https://www.yad2.co.il/realestate/{self.feed}?city={city_code}"
         if city:
             search_url = self._build_search_url(city, rooms_min, rooms_max, price_max)
 
@@ -416,7 +425,7 @@ class Yad2Scraper:
         return captured
 
     def _build_search_url(self, city, rooms_min, rooms_max, price_max) -> str:
-        base = "https://www.yad2.co.il/realestate/forsale"
+        base = f"https://www.yad2.co.il/realestate/{self.feed}"
         parts = []
         if city:
             parts.append(f"city={city}")
@@ -469,6 +478,7 @@ class Yad2Scraper:
                 "lon": lon,
                 "last_seen": now,
                 "is_active": True,
+                "deal_type": self.deal_type,
             }
         except Exception as e:
             logger.debug(f"Map normalization error: {e}")
@@ -598,14 +608,21 @@ CITY_CODES = {
 }
 
 
-async def scrape_yad2_listings(raw_snapshot_dir: Path | None = None) -> list[dict]:
-    """Scrape apartment listings across all major Israeli cities."""
-    scraper = Yad2Scraper(raw_snapshot_dir=raw_snapshot_dir)
+async def scrape_yad2_listings(
+    raw_snapshot_dir: Path | None = None, deal_type: str = "sale"
+) -> list[dict]:
+    """Scrape apartment listings across all major Israeli cities.
+
+    deal_type: "sale" (asking prices, dealType=1) or "rent" (monthly rent,
+    dealType=2). Every returned listing is tagged with ``deal_type`` so the same
+    ``listings`` table holds both modes.
+    """
+    scraper = Yad2Scraper(raw_snapshot_dir=raw_snapshot_dir, deal_type=deal_type)
     all_listings: list[dict] = []
     seen_ids: set[str] = set()
 
     for city_code, city_name in CITY_CODES.items():
-        logger.info(f"Scraping {city_name} (code={city_code})")
+        logger.info(f"Scraping {city_name} [{deal_type}] (code={city_code})")
         # Override the search URL for each city
         scraper._city_code = city_code
         try:
@@ -620,6 +637,10 @@ async def scrape_yad2_listings(raw_snapshot_dir: Path | None = None) -> list[dic
         logger.info(f"  {city_name}: {len(new)} new listings (total {len(all_listings)})")
         await asyncio.sleep(2)
 
+    # Belt-and-suspenders: guarantee every row carries the mode regardless of
+    # which internal extraction path produced it.
+    for l in all_listings:
+        l["deal_type"] = deal_type
     return all_listings
 
 

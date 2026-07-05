@@ -79,6 +79,11 @@ ENV SCANNER_FRONTEND_DIST=/app/apartments/frontend/dist \
     SCANNER_DB_PATH=/app/data/apartments/apartments.db \
     PUBLIC_URL=https://shorts-review.fly.dev/apartments
 
+# Bump to overwrite the apartments volume DB with a refreshed snapshot on the
+# next boot (entrypoint seeds when this differs from the volume's marker).
+# v2: adds rent listings alongside sale.
+ENV APARTMENTS_SEED_VERSION=2
+
 # Stamp the build with the deploying commit so the dashboard can show which code
 # is live. Placed after pip install so changing it doesn't bust the deps cache.
 ARG GIT_SHA=dev

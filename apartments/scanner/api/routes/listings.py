@@ -16,6 +16,7 @@ def _row_to_dict(cursor, row) -> dict:
 
 @router.get("", response_model=list[ListingWithScore])
 def list_listings(
+    deal_type: str = Query("sale", pattern="^(sale|rent)$"),
     city: Optional[str] = None,
     neighborhood: Optional[str] = None,
     min_rooms: Optional[float] = None,
@@ -40,6 +41,12 @@ def list_listings(
     """
     where = []
     params: list = []
+    # Sale vs rent are separate modes over the same table. Rows predating rentals
+    # are all 'sale'; treat NULL as 'sale' so legacy data stays visible.
+    if deal_type == "rent":
+        where.append("l.deal_type = 'rent'")
+    else:
+        where.append("(l.deal_type = 'sale' OR l.deal_type IS NULL)")
     if only_active:
         where.append("l.is_active = 1")
     if city:

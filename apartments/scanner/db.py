@@ -75,7 +75,8 @@ def init_schema(db: sqlite_utils.Database) -> None:
             lat REAL,
             lon REAL,
             last_seen TEXT,
-            is_active BOOLEAN
+            is_active BOOLEAN,
+            deal_type TEXT DEFAULT 'sale'
         )
     """)
     # Backfill: add columns on legacy DBs (idempotent)
@@ -97,12 +98,21 @@ def init_schema(db: sqlite_utils.Database) -> None:
             db.execute("ALTER TABLE listings ADD COLUMN has_balcony INTEGER")
         if "direction" not in cols:
             db.execute("ALTER TABLE listings ADD COLUMN direction TEXT")
+        # Sale vs rent. Existing rows predate rentals, so default them to 'sale'.
+        if "deal_type" not in cols:
+            db.execute("ALTER TABLE listings ADD COLUMN deal_type TEXT DEFAULT 'sale'")
+            db.execute("UPDATE listings SET deal_type = 'sale' WHERE deal_type IS NULL")
     except Exception:
         pass
 
     db.execute("""
         CREATE INDEX IF NOT EXISTS idx_listings_city_rooms
         ON listings(city, rooms)
+    """)
+
+    db.execute("""
+        CREATE INDEX IF NOT EXISTS idx_listings_deal_type_city
+        ON listings(deal_type, city)
     """)
 
     db.execute("""
