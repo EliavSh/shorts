@@ -46,10 +46,11 @@ export function DetailPanel({ listingId, onClose }: Props) {
 
   const l = listing.data;
   const isRent = l?.deal_type === "rent";
-  // Total monthly cost for rentals = rent + house committee + arnona.
+  // Total monthly cost, matching yad2: rent + house committee + arnona/2
+  // (arnona is billed bi-monthly).
   const rentTotal =
     l && isRent
-      ? (l.price ?? 0) + (l.vaad_bayit ?? 0) + (l.arnona ?? 0)
+      ? (l.price ?? 0) + (l.vaad_bayit ?? 0) + Math.round((l.arnona ?? 0) / 2)
       : null;
   const balconyText =
     l?.has_balcony == null ? null : l.has_balcony ? "Yes" : "No";
@@ -95,9 +96,11 @@ export function DetailPanel({ listingId, onClose }: Props) {
           <FieldRow label="City" value={l.city} />
           {isRent ? (
             <>
-              <FieldRow label="ועד בית /mo" value={l.vaad_bayit != null ? fmtMoney(l.vaad_bayit) : null} />
-              <FieldRow label="ארנונה /mo" value={l.arnona != null ? fmtMoney(l.arnona) : null} />
-              <FieldRow label="Total /mo" value={rentTotal ? fmtMoney(rentTotal) : null} />
+              {l.vaad_bayit != null && <FieldRow label="ועד בית /mo" value={fmtMoney(l.vaad_bayit)} />}
+              {l.arnona != null && <FieldRow label="ארנונה" value={fmtMoney(l.arnona)} />}
+              {(l.vaad_bayit != null || l.arnona != null) && rentTotal != null && (
+                <FieldRow label="Total /mo" value={fmtMoney(rentTotal)} />
+              )}
             </>
           ) : (
             <>

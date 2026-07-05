@@ -81,8 +81,8 @@ ENV SCANNER_FRONTEND_DIST=/app/apartments/frontend/dist \
 
 # Bump to overwrite the apartments volume DB with a refreshed snapshot on the
 # next boot (entrypoint seeds when this differs from the volume's marker).
-# v2: adds rent listings alongside sale.
-ENV APARTMENTS_SEED_VERSION=2
+# v2: adds rent listings alongside sale. v3: adds ועד בית/ארנונה for enriched rentals.
+ENV APARTMENTS_SEED_VERSION=3
 
 # Stamp the build with the deploying commit so the dashboard can show which code
 # is live. Placed after pip install so changing it doesn't bust the deps cache.

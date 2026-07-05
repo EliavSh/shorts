@@ -74,8 +74,9 @@ def list_listings(
     if max_price is not None:
         where.append("l.price <= ?")
         params.append(max_price)
-    # Total = base price + monthly extras (NULLs treated as 0).
-    _total_sql = "(l.price + COALESCE(l.vaad_bayit, 0) + COALESCE(l.arnona, 0))"
+    # Total monthly cost, matching yad2's own formula: rent + house-committee +
+    # arnona/2 (arnona is billed bi-monthly). NULLs treated as 0.
+    _total_sql = "(l.price + COALESCE(l.vaad_bayit, 0) + COALESCE(l.arnona, 0) / 2)"
     if min_total is not None:
         where.append(f"{_total_sql} >= ?")
         params.append(min_total)
