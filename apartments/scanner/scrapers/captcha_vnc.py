@@ -124,12 +124,33 @@ async def launch_novnc_session(source: str) -> None:
     try:
         _send_text(f"⏳ Starting noVNC session for <b>{source}</b>...")
 
+        # Preflight: confirm the toolchain is actually in the image. Surfaces a
+        # missing/broken Docker install immediately instead of hanging silently.
+        import shutil
+        missing = [b for b in ("Xvfb", "x11vnc", "websockify", "cloudflared")
+                   if not shutil.which(b)]
+        if not Path(NOVNC_WEB).exists():
+            missing.append(f"{NOVNC_WEB} (noVNC web assets)")
+        if missing:
+            _send_text("❌ noVNC can't start — missing on server: " + ", ".join(missing))
+            return
+
+        def _check_alive(step: str) -> bool:
+            """A just-started helper process that already exited = report and stop."""
+            p = procs[-1]
+            if p.poll() is not None:
+                _send_text(f"❌ noVNC step failed: <b>{step}</b> exited (code {p.returncode})")
+                return False
+            return True
+
         # 1. Xvfb virtual display
         procs.append(subprocess.Popen(
             ["Xvfb", XVFB_DISPLAY, "-screen", "0", "1280x900x24"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         ))
         await asyncio.sleep(1.5)
+        if not _check_alive("Xvfb (virtual display)"):
+            return
 
         # 2. x11vnc VNC server on the virtual display
         procs.append(subprocess.Popen(
@@ -138,6 +159,8 @@ async def launch_novnc_session(source: str) -> None:
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         ))
         await asyncio.sleep(1.5)
+        if not _check_alive("x11vnc"):
+            return
 
         # 3. noVNC websockify
         procs.append(subprocess.Popen(
@@ -146,8 +169,11 @@ async def launch_novnc_session(source: str) -> None:
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         ))
         await asyncio.sleep(2)
+        if not _check_alive("websockify"):
+            return
 
         # 4. Cloudflare tunnel to noVNC port → get URL
+        _send_text("⏳ noVNC up — opening public tunnel (~10-30s)...")
         tunnel_log_fd, tunnel_log_path = tempfile.mkstemp(suffix=".log")
         os.close(tunnel_log_fd)
         tunnel_log_f = open(tunnel_log_path, "w")
@@ -168,11 +194,19 @@ async def launch_novnc_session(source: str) -> None:
             except Exception:
                 pass
 
-        novnc_url = (
-            f"{tunnel_url}/vnc.html?autoconnect=1&resize=scale"
-            if tunnel_url
-            else f"http://localhost:{NOVNC_PORT}/vnc.html?autoconnect=1&resize=scale"
-        )
+        # No public URL = the link would be an unreachable localhost:6080. Abort
+        # loudly with the cloudflared log tail so we can see why (rate-limit, etc.)
+        # rather than sending a dead link.
+        if not tunnel_url:
+            tail = ""
+            try:
+                tail = Path(tunnel_log_path).read_text(errors="replace")[-500:]
+            except Exception:
+                pass
+            _send_text("❌ cloudflared produced no public URL in 60s.\n\n" + (tail or "(empty log)"))
+            return
+
+        novnc_url = f"{tunnel_url}/vnc.html?autoconnect=1&resize=scale"
 
         # 5. Launch headed Playwright browser on the Xvfb display
         os.environ["DISPLAY"] = XVFB_DISPLAY

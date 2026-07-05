@@ -48,6 +48,22 @@ write_b64_secret BRAWL_YOUTUBE_TOKEN_JSON_B64   /app/secrets/brawl_youtube_token
 # The scanner's SQLite DB + Playwright sessions live on the Fly volume.
 mkdir -p /app/data/apartments/sessions
 
+# Seed the Fly volume with a freshly-scraped snapshot baked into the image.
+# yad2's Radware bot-check blocks Fly's datacenter IP, so scraping can't run on
+# Fly — the DB is scraped on a residential machine and shipped in the image. A
+# version marker means this overwrites the (empty) volume DB once per bump; raise
+# APARTMENTS_SEED_VERSION to push a refreshed snapshot on the next deploy.
+APT_DB=/app/data/apartments/apartments.db
+APT_SEED=/app/deploy/seed/apartments_seed.db.gz
+APT_MARKER=/app/data/apartments/.apartments_seed_version
+APT_WANT="${APARTMENTS_SEED_VERSION:-1}"
+if [ -f "$APT_SEED" ] && [ "$(cat "$APT_MARKER" 2>/dev/null || echo none)" != "$APT_WANT" ]; then
+    echo "[entrypoint] apartments: seeding snapshot DB v$APT_WANT -> $APT_DB"
+    gunzip -c "$APT_SEED" > "$APT_DB"
+    echo "$APT_WANT" > "$APT_MARKER"
+    echo "[entrypoint] apartments: seeded $(wc -c < "$APT_DB") bytes"
+fi
+
 # Telegram bot (long-polling) — only if credentials are present. It also sends a
 # startup message with the public URL (PUBLIC_URL env).
 if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
