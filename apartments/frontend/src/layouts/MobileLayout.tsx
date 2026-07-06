@@ -16,6 +16,8 @@ interface Props {
   onZonesToggle: () => void;
   busVisible: boolean;
   onBusToggle: () => void;
+  nearBus826: boolean;
+  onNearBusToggle: () => void;
   onRefresh: () => void;
   loading: boolean;
 }
@@ -44,6 +46,8 @@ export function MobileLayout({
   onZonesToggle,
   busVisible,
   onBusToggle,
+  nearBus826,
+  onNearBusToggle,
   onRefresh,
   loading,
 }: Props) {
@@ -70,6 +74,14 @@ export function MobileLayout({
           }`}
         >
           🚌 826
+        </button>
+        <button
+          onClick={onNearBusToggle}
+          className={`pointer-events-auto min-h-[36px] rounded-full px-3 py-1 text-xs font-medium shadow ${
+            nearBus826 ? "bg-amber-600 text-white" : "bg-slate-900/90 text-slate-200"
+          }`}
+        >
+          📍 Near 826
         </button>
         <button
           onClick={onRefresh}

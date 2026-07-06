@@ -12,7 +12,18 @@ import { DesktopLayout } from "@/layouts/DesktopLayout";
 import { MobileLayout } from "@/layouts/MobileLayout";
 import { isMobile as detectMobile } from "@/services/platform";
 import { haversineMeters } from "@/services/format";
+import { BUS_826_TLV_YOKNEAM } from "@/data/busLine826";
 import type { DealType } from "@/types";
+
+// A listing is "near line 826" if within this many metres of any of its stops.
+const BUS_826_RADIUS_M = 800;
+function isNearBus826(lat?: number | null, lon?: number | null): boolean {
+  if (lat == null || lon == null) return false;
+  for (const s of BUS_826_TLV_YOKNEAM) {
+    if (haversineMeters(lat, lon, s.lat, s.lon) <= BUS_826_RADIUS_M) return true;
+  }
+  return false;
+}
 
 export function MapPage({ mode = "sale" }: { mode?: DealType }) {
   const mobile = useIsMobileReactive();
@@ -23,6 +34,7 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
   const [follow, setFollow] = useState(true);
   const [zonesVisible, setZonesVisible] = useState(true);
   const [busVisible, setBusVisible] = useState(false);
+  const [nearBus826, setNearBus826] = useState(false);
   const { coords, error: gpsError } = useGeolocation(gpsEnabled);
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -66,20 +78,24 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
   //   - Top deals preset overrides everything: order by gap ascending.
   //   - Otherwise, if we have a center, sort closest first.
   const filteredListings = (() => {
+    // Optional spatial filter: only listings within ~800m of a line-826 stop.
+    const base = nearBus826
+      ? withDistance.filter((l) => isNearBus826(l.lat, l.lon))
+      : withDistance;
     if (dealsEnabled && filters.top_deals_only) {
-      return withDistance
+      return base
         .filter((l) => l.score?.gap_percent != null && l.score.gap_percent <= -10)
         .slice()
         .sort((a, b) => a.score!.gap_percent! - b.score!.gap_percent!);
     }
     if (center) {
-      return withDistance.slice().sort((a, b) => {
+      return base.slice().sort((a, b) => {
         const da = a._dist ?? Infinity;
         const db = b._dist ?? Infinity;
         return da - db;
       });
     }
-    return withDistance;
+    return base;
   })();
 
   useEffect(() => {
@@ -96,7 +112,7 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
     <MapView
       listings={filteredListings}
       zones={zonesVisible ? zonesQuery.data : null}
-      showBus={busVisible}
+      showBus={busVisible || nearBus826}
       gps={coords}
       onListingClick={(id) => {
         setSelected(id);
@@ -189,6 +205,8 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
         onZonesToggle={() => setZonesVisible((v) => !v)}
         busVisible={busVisible}
         onBusToggle={() => setBusVisible((v) => !v)}
+        nearBus826={nearBus826}
+        onNearBusToggle={() => setNearBus826((v) => !v)}
         onRefresh={() => {
           listings.refetch();
           zonesQuery.refetch();
@@ -216,7 +234,15 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
         >
           🚌 826
         </button>
-        <MapLegend />
+        <button
+          onClick={() => setNearBus826((v) => !v)}
+          className={`min-h-[36px] rounded-full px-3 py-1 text-sm shadow ${
+            nearBus826 ? "bg-amber-600 text-white" : "bg-slate-800 text-slate-300"
+          }`}
+        >
+          📍 Near 826
+        </button>
+        <MapLegend mode={mode} />
         {gpsToggle}
       </div>
       {isLoading && (

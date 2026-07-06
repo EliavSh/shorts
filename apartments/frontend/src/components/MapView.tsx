@@ -42,6 +42,33 @@ function clusterIcon(count: number): L.DivIcon {
   });
 }
 
+// Rent has no market/sold comparison, so color rentals by rent-per-m² RELATIVE
+// to the other rentals currently shown: cheapest = green, priciest = red (same
+// red→yellow→green intuition as the sale gap map). Returns an id→color map;
+// empty for sale listings (they fall back to gapColor).
+function buildRentColorScale(listings: ListingWithScore[]): Map<string, string> {
+  const rent = listings.filter(
+    (l) => l.deal_type === "rent" && l.price_per_sqm != null && (l.price_per_sqm as number) > 0,
+  );
+  const m = new Map<string, string>();
+  if (rent.length < 3) return m; // too few to rank meaningfully
+  const sorted = rent.map((l) => l.price_per_sqm as number).sort((a, b) => a - b);
+  const pctOf = (v: number) => {
+    let lo = 0, hi = sorted.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (sorted[mid] <= v) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo / sorted.length; // 0 = cheapest … 1 = priciest
+  };
+  for (const l of rent) {
+    const hue = Math.round(120 * (1 - pctOf(l.price_per_sqm as number))); // 120 green → 0 red
+    m.set(l.id, `hsl(${hue}, 68%, 45%)`);
+  }
+  return m;
+}
+
 function gapColor(gap: number | null | undefined): string {
   // Tiered scale (negative gap = below market = good for buyer):
   //   <= -25%   premium deal (deep emerald)
@@ -289,6 +316,8 @@ function MarkersLayer({
   const zoom = useLiveZoom(map.getZoom());
 
   const cells = useMemo(() => bucketize(listings), [listings]);
+  // Rent color map (empty for sale — those use gapColor).
+  const rentColors = useMemo(() => buildRentColorScale(listings), [listings]);
 
   // Marker pixel radius: bigger on mobile, scales with zoom for finger-friendly tap.
   const radius = useMemo(() => {
@@ -328,9 +357,9 @@ function MarkersLayer({
                 key={l.id}
                 position={[l.lat, l.lon]}
                 icon={pinIcon(
-                  gapColor(l.score?.gap_percent),
+                  rentColors.get(l.id) ?? gapColor(l.score?.gap_percent),
                   radius,
-                  l.score?.percentile_rank ?? null,
+                  l.deal_type === "rent" ? null : (l.score?.percentile_rank ?? null),
                   selectedId === l.id,
                 )}
                 eventHandlers={{ click: () => onListingClick?.(l.id) }}

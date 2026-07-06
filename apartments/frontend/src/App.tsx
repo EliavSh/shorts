@@ -12,7 +12,7 @@ import type { DealType } from "@/types";
 type Page = "map" | "analytics";
 
 export function App() {
-  const [mode, setMode] = useState<DealType>("sale");
+  const [mode, setMode] = useState<DealType>("rent");
   const [page, setPage] = useState<Page>("map");
 
   const showAnalytics = mode === "sale";
