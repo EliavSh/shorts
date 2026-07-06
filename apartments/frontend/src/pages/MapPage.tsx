@@ -12,7 +12,7 @@ import { DesktopLayout } from "@/layouts/DesktopLayout";
 import { MobileLayout } from "@/layouts/MobileLayout";
 import { isMobile as detectMobile } from "@/services/platform";
 import { haversineMeters } from "@/services/format";
-import { BUS_826_TLV_YOKNEAM } from "@/data/busLine826";
+import { BUS_826_TLV_YOKNEAM } from "@/services/busLine826";
 import type { DealType } from "@/types";
 
 // A listing is "near line 826" if within this many metres of any of its stops.

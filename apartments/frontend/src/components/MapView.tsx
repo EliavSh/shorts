@@ -14,7 +14,7 @@ import L from "leaflet";
 import type { GpsCoords, ListingWithScore } from "@/types";
 import type { ZonesCollection } from "@/api/zones";
 import { ZonesLayer } from "@/components/ZonesLayer";
-import { BUS_826_TLV_YOKNEAM } from "@/data/busLine826";
+import { BUS_826_TLV_YOKNEAM } from "@/services/busLine826";
 
 // Bucket markers into ~300 m grid cells; cluster when ≥7.
 const GRID_DEG = 0.003;
