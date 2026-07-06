@@ -22,6 +22,7 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
   const [gpsEnabled, setGpsEnabled] = useState<boolean>(() => detectMobile());
   const [follow, setFollow] = useState(true);
   const [zonesVisible, setZonesVisible] = useState(true);
+  const [busVisible, setBusVisible] = useState(false);
   const { coords, error: gpsError } = useGeolocation(gpsEnabled);
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -95,6 +96,7 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
     <MapView
       listings={filteredListings}
       zones={zonesVisible ? zonesQuery.data : null}
+      showBus={busVisible}
       gps={coords}
       onListingClick={(id) => {
         setSelected(id);
@@ -185,6 +187,8 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
         gpsToggle={gpsToggle}
         zonesVisible={zonesVisible}
         onZonesToggle={() => setZonesVisible((v) => !v)}
+        busVisible={busVisible}
+        onBusToggle={() => setBusVisible((v) => !v)}
         onRefresh={() => {
           listings.refetch();
           zonesQuery.refetch();
@@ -203,6 +207,14 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
           }`}
         >
           🏛 Zones
+        </button>
+        <button
+          onClick={() => setBusVisible((v) => !v)}
+          className={`min-h-[36px] rounded-full px-3 py-1 text-sm shadow ${
+            busVisible ? "bg-amber-500 text-white" : "bg-slate-800 text-slate-300"
+          }`}
+        >
+          🚌 826
         </button>
         <MapLegend />
         {gpsToggle}

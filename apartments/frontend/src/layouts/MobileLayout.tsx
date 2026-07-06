@@ -14,6 +14,8 @@ interface Props {
   gpsToggle: ReactNode;
   zonesVisible: boolean;
   onZonesToggle: () => void;
+  busVisible: boolean;
+  onBusToggle: () => void;
   onRefresh: () => void;
   loading: boolean;
 }
@@ -40,6 +42,8 @@ export function MobileLayout({
   gpsToggle,
   zonesVisible,
   onZonesToggle,
+  busVisible,
+  onBusToggle,
   onRefresh,
   loading,
 }: Props) {
@@ -58,6 +62,14 @@ export function MobileLayout({
           }`}
         >
           🏛 Zones
+        </button>
+        <button
+          onClick={onBusToggle}
+          className={`pointer-events-auto min-h-[36px] rounded-full px-3 py-1 text-xs font-medium shadow ${
+            busVisible ? "bg-amber-500 text-white" : "bg-slate-900/90 text-slate-200"
+          }`}
+        >
+          🚌 826
         </button>
         <button
           onClick={onRefresh}

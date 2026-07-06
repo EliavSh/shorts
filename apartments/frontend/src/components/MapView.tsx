@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Circle,
+  CircleMarker,
   MapContainer,
   Marker,
+  Polyline,
   TileLayer,
+  Tooltip,
   useMap,
   useMapEvents,
 } from "react-leaflet";
@@ -11,6 +14,7 @@ import L from "leaflet";
 import type { GpsCoords, ListingWithScore } from "@/types";
 import type { ZonesCollection } from "@/api/zones";
 import { ZonesLayer } from "@/components/ZonesLayer";
+import { BUS_826_TLV_YOKNEAM } from "@/data/busLine826";
 
 // Bucket markers into ~300 m grid cells; cluster when ≥7.
 const GRID_DEG = 0.003;
@@ -103,9 +107,30 @@ function pinIcon(
   });
 }
 
+// Bus line 826 (Tel Aviv → Yokneam) overlay: route polyline + labelled stops.
+function BusLine826Layer() {
+  const path = BUS_826_TLV_YOKNEAM.map((s) => [s.lat, s.lon] as [number, number]);
+  return (
+    <>
+      <Polyline positions={path} pathOptions={{ color: "#f59e0b", weight: 3, opacity: 0.65 }} />
+      {BUS_826_TLV_YOKNEAM.map((s) => (
+        <CircleMarker
+          key={s.seq}
+          center={[s.lat, s.lon]}
+          radius={5}
+          pathOptions={{ color: "#b45309", fillColor: "#f59e0b", fillOpacity: 1, weight: 2 }}
+        >
+          <Tooltip direction="top">{`🚌 826 · ${s.seq}. ${s.name} (${s.city})`}</Tooltip>
+        </CircleMarker>
+      ))}
+    </>
+  );
+}
+
 interface Props {
   listings: ListingWithScore[];
   zones?: ZonesCollection | null;
+  showBus?: boolean;
   gps?: GpsCoords | null;
   radiusMeters?: number;
   follow: boolean;
@@ -321,6 +346,7 @@ function MarkersLayer({
 export function MapView({
   listings,
   zones,
+  showBus = false,
   gps,
   radiusMeters = 2000,
   follow,
@@ -363,6 +389,7 @@ export function MapView({
           onMapMove={onMapMove}
         />
         {zones && zones.features.length > 0 && <ZonesLayer zones={zones} />}
+        {showBus && <BusLine826Layer />}
         {gps && (
           <>
             <Marker position={[gps.lat, gps.lon]} icon={gpsIcon} />
