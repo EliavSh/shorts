@@ -37,7 +37,8 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
   const [follow, setFollow] = useState(true);
   const [zonesVisible, setZonesVisible] = useState(true);
   const [busVisible, setBusVisible] = useState(false);
-  const [nearBus826, setNearBus826] = useState(false);
+  // Default focus: rentals along the 826 line (around Tel Aviv / Herzliya).
+  const [nearBus826, setNearBus826] = useState(true);
   const { coords, error: gpsError } = useGeolocation(gpsEnabled);
   const [selected, setSelected] = useState<string | null>(null);
 
