@@ -16,7 +16,10 @@ import { BUS_826_TLV_YOKNEAM } from "@/services/busLine826";
 import type { DealType } from "@/types";
 
 // A listing is "near line 826" if within this many metres of any of its stops.
-const BUS_826_RADIUS_M = 800;
+const BUS_826_RADIUS_M = 1500;
+// Listings priced below this are junk (parking spots / storage / bad data),
+// not real apartments — drop them everywhere.
+const MIN_REAL_PRICE = 2000;
 function isNearBus826(lat?: number | null, lon?: number | null): boolean {
   if (lat == null || lon == null) return false;
   for (const s of BUS_826_TLV_YOKNEAM) {
@@ -63,7 +66,7 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
 
   // Compute distances once, drive both sort and per-card display.
   const withDistance = (() => {
-    const raw = listings.data ?? [];
+    const raw = (listings.data ?? []).filter((l) => (l.price ?? 0) >= MIN_REAL_PRICE);
     if (!center) return raw.map((l) => ({ ...l, _dist: null as number | null }));
     return raw.map((l) => ({
       ...l,
