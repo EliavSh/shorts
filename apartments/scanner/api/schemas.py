@@ -28,6 +28,9 @@ class Listing(BaseModel):
     deal_type: Optional[str] = None
     vaad_bayit: Optional[int] = None
     arnona: Optional[int] = None
+    has_elevator: Optional[bool] = None
+    has_parking: Optional[bool] = None
+    has_mamad: Optional[bool] = None
 
 
 class ListingScore(BaseModel):

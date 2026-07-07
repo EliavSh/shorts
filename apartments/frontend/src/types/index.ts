@@ -24,6 +24,9 @@ export interface Listing {
   deal_type?: "sale" | "rent" | null;
   vaad_bayit?: number | null;
   arnona?: number | null;
+  has_elevator?: boolean | null;
+  has_parking?: boolean | null;
+  has_mamad?: boolean | null;
 }
 
 export type DealType = "sale" | "rent";

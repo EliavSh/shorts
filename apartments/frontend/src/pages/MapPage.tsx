@@ -20,6 +20,8 @@ const BUS_826_RADIUS_M = 1500;
 // Listings priced below this are junk (parking spots / storage / bad data),
 // not real apartments — drop them everywhere.
 const MIN_REAL_PRICE = 2000;
+// Rent above this ₪/mo is out of scope (luxury / mis-listed) — drop in rent mode.
+const MAX_RENT = 15000;
 function isNearBus826(lat?: number | null, lon?: number | null): boolean {
   if (lat == null || lon == null) return false;
   for (const s of BUS_826_TLV_YOKNEAM) {
@@ -67,7 +69,12 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
 
   // Compute distances once, drive both sort and per-card display.
   const withDistance = (() => {
-    const raw = (listings.data ?? []).filter((l) => (l.price ?? 0) >= MIN_REAL_PRICE);
+    const raw = (listings.data ?? []).filter((l) => {
+      const p = l.price ?? 0;
+      if (p < MIN_REAL_PRICE) return false;
+      if (mode === "rent" && p > MAX_RENT) return false; // sale prices are millions
+      return true;
+    });
     if (!center) return raw.map((l) => ({ ...l, _dist: null as number | null }));
     return raw.map((l) => ({
       ...l,

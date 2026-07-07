@@ -108,6 +108,14 @@ def init_schema(db: sqlite_utils.Database) -> None:
             db.execute("ALTER TABLE listings ADD COLUMN vaad_bayit INTEGER")
         if "arnona" not in cols:
             db.execute("ALTER TABLE listings ADD COLUMN arnona INTEGER")
+        # Amenities from the yad2 item page (1/0, NULL = not enriched yet):
+        # מעלית / חניה / ממ״ד.
+        if "has_elevator" not in cols:
+            db.execute("ALTER TABLE listings ADD COLUMN has_elevator INTEGER")
+        if "has_parking" not in cols:
+            db.execute("ALTER TABLE listings ADD COLUMN has_parking INTEGER")
+        if "has_mamad" not in cols:
+            db.execute("ALTER TABLE listings ADD COLUMN has_mamad INTEGER")
     except Exception:
         pass
 

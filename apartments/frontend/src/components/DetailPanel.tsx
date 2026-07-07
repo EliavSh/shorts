@@ -111,6 +111,16 @@ export function DetailPanel({ listingId, onClose }: Props) {
         </dl>
       )}
 
+      {/* Amenities scraped from the yad2 item page — shown once a listing is
+          enriched (מעלית / חניה / ממ״ד). */}
+      {l && (l.has_elevator != null || l.has_parking != null || l.has_mamad != null) && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <AmenityChip label="מעלית" has={l.has_elevator} />
+          <AmenityChip label="חניה" has={l.has_parking} />
+          <AmenityChip label={"ממ״ד"} has={l.has_mamad} />
+        </div>
+      )}
+
       {/* Dual-scope explainer: gap-tier + near (street-level) + area (rooms cohort).
           Sale-only — rentals have no recorded-transaction comparison. */}
       {l && !isRent && (
@@ -237,6 +247,22 @@ function FieldRow({ label, value }: { label: string; value: unknown }) {
         {isMissing ? "Not provided" : String(value)}
       </dd>
     </>
+  );
+}
+
+/** Amenity chip: green ✓ when present, muted ✕ when absent, hidden when unknown. */
+function AmenityChip({ label, has }: { label: string; has?: boolean | null }) {
+  if (has == null) return null;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium border ${
+        has
+          ? "bg-emerald-900/40 text-emerald-200 border-emerald-800"
+          : "bg-slate-800 text-slate-500 border-slate-700"
+      }`}
+    >
+      {has ? "✓" : "✕"} {label}
+    </span>
   );
 }
 
