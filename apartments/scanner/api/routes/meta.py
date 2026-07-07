@@ -112,6 +112,53 @@ def health_led(db: sqlite_utils.Database = Depends(get_database)):
     return out
 
 
+@router.get("/status")
+def status(db: sqlite_utils.Database = Depends(get_database)):
+    """Consolidated system status for the website's hidden Status view — the
+    info that used to be pushed to Telegram: recent scrape runs, per-mode
+    listing counts, and enrichment coverage."""
+    def scalar(sql, params=None):
+        try:
+            return db.execute(sql, params or []).fetchone()[0]
+        except Exception:
+            return None
+
+    runs = []
+    try:
+        for r in db.execute(
+            "SELECT source, status, ended_at, rows_scraped, rows_inserted, "
+            "error_message, captcha_detected FROM run_history "
+            "ORDER BY ended_at DESC LIMIT 25"
+        ).fetchall():
+            runs.append({
+                "source": r[0], "status": r[1], "ended_at": r[2],
+                "rows_scraped": r[3], "rows_inserted": r[4],
+                "error": r[5], "captcha": bool(r[6] or 0),
+            })
+    except Exception:
+        pass
+
+    counts = {
+        "sale": scalar("SELECT COUNT(*) FROM listings WHERE deal_type='sale' AND is_active=1"),
+        "rent": scalar("SELECT COUNT(*) FROM listings WHERE deal_type='rent' AND is_active=1"),
+        "transactions": scalar("SELECT COUNT(*) FROM transactions"),
+    }
+    enrichment = {
+        "rent_with_costs": scalar(
+            "SELECT COUNT(*) FROM listings WHERE deal_type='rent' AND (vaad_bayit IS NOT NULL OR arnona IS NOT NULL)"
+        ),
+        "rent_with_amenities": scalar(
+            "SELECT COUNT(*) FROM listings WHERE deal_type='rent' AND has_elevator IS NOT NULL"
+        ),
+    }
+    return {
+        "server_time": datetime.now().isoformat(timespec="seconds"),
+        "counts": counts,
+        "enrichment": enrichment,
+        "recent_runs": runs,
+    }
+
+
 @router.get("/freshness")
 def freshness(db: sqlite_utils.Database = Depends(get_database)):
     """Last successful run timestamp + row counts per source."""

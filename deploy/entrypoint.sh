@@ -64,24 +64,12 @@ if [ -f "$APT_SEED" ] && [ "$(cat "$APT_MARKER" 2>/dev/null || echo none)" != "$
     echo "[entrypoint] apartments: seeded $(wc -c < "$APT_DB") bytes"
 fi
 
-# Telegram bot (long-polling) — only if credentials are present. It also sends a
-# startup message with the public URL (PUBLIC_URL env).
-if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
-    echo "[entrypoint] starting apartment Telegram bot"
-    python -m scanner.bot.telegram_bot &
-else
-    echo "[entrypoint] TELEGRAM_* not set — apartment bot not started"
-fi
-
-# Hourly scraper loop (best-effort; a failed cycle never kills the loop).
-echo "[entrypoint] starting apartment scraper cron loop (hourly)"
-(
-    while true; do
-        sleep 3600
-        echo "[apartments-cron] running cron_scrape"
-        (cd /app && python -m scripts.cron_scrape) >/dev/null 2>&1 \
-            || echo "[apartments-cron] cycle failed, continuing"
-    done
-) &
+# Telegram: DISABLED. All status now lives on the website (health LED, the
+# Status view, and the Analytics page). The bot is not started, so it sends no
+# alerts. The in-container hourly scrape loop is also removed: yad2's Radware
+# bot-check blocks Fly's datacenter IP, so on-Fly scraping only ever failed and
+# spammed those alerts. Listings are refreshed by a residential-IP scrape that
+# reseeds the volume (see APARTMENTS_SEED_VERSION).
+echo "[entrypoint] apartment Telegram bot + on-Fly cron disabled (status is on the website)"
 
 exec "$@"

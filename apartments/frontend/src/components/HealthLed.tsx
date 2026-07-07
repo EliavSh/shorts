@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchHealth } from "@/api/meta";
+import { fetchHealth, fetchStatus } from "@/api/meta";
 import type { SourceHealth } from "@/types";
 
 const DOT_COLOR: Record<SourceHealth["status"], string> = {
@@ -50,6 +50,7 @@ function fmtAge(h: number | null): string {
  */
 export function HealthLed() {
   const [openSource, setOpenSource] = useState<string | null>(null);
+  const [showStatus, setShowStatus] = useState(false);
   const { data } = useQuery({
     queryKey: ["health"],
     queryFn: fetchHealth,
@@ -72,7 +73,13 @@ export function HealthLed() {
       <div
         className={`flex h-7 w-full items-center gap-2 px-3 text-xs text-white ${STRIP_BG[overall]}`}
       >
-        <span className="font-medium">{STRIP_LABEL[overall]}</span>
+        <button
+          onClick={() => setShowStatus(true)}
+          className="font-medium underline-offset-2 hover:underline"
+          title="System status"
+        >
+          {STRIP_LABEL[overall]} ⓘ
+        </button>
         <span className="ml-auto flex items-center gap-2">
           {data.map((s) => {
             const isOpen = openSource === s.source;
@@ -129,6 +136,83 @@ export function HealthLed() {
           )}
         </div>
       )}
+
+      {showStatus && <StatusModal onClose={() => setShowStatus(false)} />}
+    </div>
+  );
+}
+
+/** Consolidated system status (was previously pushed to Telegram): DB counts,
+ *  enrichment coverage and the recent scrape-run log. */
+function StatusModal({ onClose }: { onClose: () => void }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["system-status"],
+    queryFn: fetchStatus,
+    refetchInterval: 30_000,
+  });
+  return (
+    <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-black/60 p-3" onClick={onClose}>
+      <div
+        className="mt-10 w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-4 text-sm text-slate-200 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <div className="text-base font-semibold">System status</div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-200" aria-label="Close">✕</button>
+        </div>
+        {isLoading || !data ? (
+          <div className="text-slate-500">Loading…</div>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <Stat label="Sale" value={data.counts.sale} />
+              <Stat label="Rent" value={data.counts.rent} />
+              <Stat label="Transactions" value={data.counts.transactions} />
+            </div>
+            <div className="mb-3 text-xs text-slate-400">
+              Rent enriched — costs: <b className="text-slate-200">{data.enrichment.rent_with_costs ?? 0}</b>{" "}
+              · amenities: <b className="text-slate-200">{data.enrichment.rent_with_amenities ?? 0}</b>
+            </div>
+            <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Recent scrape runs</div>
+            <div className="max-h-72 overflow-auto rounded border border-slate-800">
+              {data.recent_runs.length === 0 ? (
+                <div className="p-3 text-slate-500">No runs recorded.</div>
+              ) : (
+                <table className="w-full text-xs">
+                  <tbody>
+                    {data.recent_runs.map((r, i) => (
+                      <tr key={i} className="border-b border-slate-800 last:border-0">
+                        <td className="py-1 px-2">
+                          <span
+                            className="mr-1 inline-block h-2 w-2 rounded-full align-middle"
+                            style={{ backgroundColor: r.status === "success" ? "#16a34a" : r.captcha ? "#dc2626" : "#eab308" }}
+                          />
+                          {r.source}
+                        </td>
+                        <td className="py-1 px-2 text-slate-400">{r.status}{r.captcha ? " (captcha)" : ""}</td>
+                        <td className="py-1 px-2 text-slate-400">{r.rows_scraped ?? "—"} rows</td>
+                        <td className="py-1 px-2 text-slate-500 whitespace-nowrap">
+                          {r.ended_at ? new Date(r.ended_at).toLocaleString() : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div className="mt-2 text-[11px] text-slate-600">Server time {data.server_time}</div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number | null }) {
+  return (
+    <div className="rounded-lg bg-slate-800/60 p-2 text-center">
+      <div className="text-lg font-semibold text-slate-100">{value?.toLocaleString() ?? "—"}</div>
+      <div className="text-[11px] text-slate-400">{label}</div>
     </div>
   );
 }
