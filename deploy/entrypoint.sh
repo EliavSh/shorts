@@ -55,13 +55,15 @@ mkdir -p /app/data/apartments/sessions
 # APARTMENTS_SEED_VERSION to push a refreshed snapshot on the next deploy.
 APT_DB=/app/data/apartments/apartments.db
 APT_SEED=/app/deploy/seed/apartments_seed.db.gz
-APT_MARKER=/app/data/apartments/.apartments_seed_version
-APT_WANT="${APARTMENTS_SEED_VERSION:-1}"
-if [ -f "$APT_SEED" ] && [ "$(cat "$APT_MARKER" 2>/dev/null || echo none)" != "$APT_WANT" ]; then
-    echo "[entrypoint] apartments: seeding snapshot DB v$APT_WANT -> $APT_DB"
+# Always reload the DB from the shipped snapshot on boot. Fly can't scrape yad2
+# (Radware blocks the datacenter IP), so the volume DB is purely derived from
+# the seed baked into the image — each deploy carries a fresh residential-IP
+# scrape (pushed by the PC's 2x/day auto-refresh), and boot mirrors it. No
+# version marker needed.
+if [ -f "$APT_SEED" ]; then
+    echo "[entrypoint] apartments: loading seed snapshot -> $APT_DB"
     gunzip -c "$APT_SEED" > "$APT_DB"
-    echo "$APT_WANT" > "$APT_MARKER"
-    echo "[entrypoint] apartments: seeded $(wc -c < "$APT_DB") bytes"
+    echo "[entrypoint] apartments: loaded $(wc -c < "$APT_DB") bytes"
 fi
 
 # Telegram: DISABLED. All status now lives on the website (health LED, the
