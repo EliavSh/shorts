@@ -14,9 +14,10 @@ DEFAULT_DB_PATH = os.environ.get(
 # Sources to hide from API responses. Each entry must appear in either
 # _SOURCE_URL_MARKERS (filters listings.url) or _SOURCE_TXN_ID_PREFIXES
 # (filters transactions.id) — or both. Toggle this single list to re-enable.
-#   - madlan: disabled while their PerimeterX CAPTCHA is unsolved
+#   - madlan: RE-ENABLED 2026-07 — saved session passes PerimeterX; scraped on
+#     the residential PC alongside yad2 (sale + rent).
 #   - nadlan: disabled per user request — sale data isn't shown on the site
-DISABLED_SOURCES: tuple[str, ...] = ("madlan", "nadlan")
+DISABLED_SOURCES: tuple[str, ...] = ("nadlan",)
 
 # The `listings` table has no `source` column; the source is encoded in `url`.
 _SOURCE_URL_MARKERS: dict[str, str] = {

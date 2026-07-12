@@ -39,9 +39,13 @@ def listing_fingerprint(listing: dict) -> str | None:
     sqm = listing.get("sqm") or 0
     if not city or not street or not price:
         return None
-    price_bucket = round(price / 50_000)
+    # Sale and rent are different markets for the same address — never merge
+    # across modes. Rent prices are ~100x smaller, so bucket them at ₪1k
+    # (₪50k would collapse all rents to bucket 0 and merge distinct rentals).
+    deal = listing.get("deal_type") or "sale"
+    price_bucket = round(price / (1_000 if deal == "rent" else 50_000))
     sqm_bucket = round(sqm / 10) * 10
-    return f"{city}|{street}|{rooms}|{price_bucket}|{sqm_bucket}"
+    return f"{deal}|{city}|{street}|{rooms}|{price_bucket}|{sqm_bucket}"
 
 
 def dedup_cross_source(db: sqlite_utils.Database) -> int:

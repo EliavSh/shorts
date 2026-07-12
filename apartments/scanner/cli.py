@@ -138,8 +138,10 @@ def scrape(source: str, mode: str, deal_type: str, cities, db_path: str, raw_sna
 
     elif source == "madlan":
         try:
-            logger.info("Scraping Madlan listings (SSR HTML + GraphQL)")
-            listings = asyncio.run(scrape_madlan_listings(raw_snapshot_dir=raw_snapshots))
+            logger.info(f"Scraping Madlan listings (SSR HTML + GraphQL) [{deal_type}]")
+            listings = asyncio.run(
+                scrape_madlan_listings(raw_snapshot_dir=raw_snapshots, deal_type=deal_type, unattended=True)
+            )
             if listings:
                 # Split _events out into listing_price_history (Sprint 3.a)
                 events: list[dict] = []

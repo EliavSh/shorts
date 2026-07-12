@@ -134,11 +134,19 @@ query searchPoi($dealType: String, $sort: [SortField], $tileRanges: [TileRange],
 """.strip()
 
 
+# Sale vs rent: madlan uses distinct URL slugs and GraphQL dealType values.
+MADLAN_SLUGS = {"sale": "for-sale", "rent": "for-rent"}
+MADLAN_DEAL_PARAM = {"sale": "unitBuy", "rent": "unitRent"}
+
+
 class MadlanScraper:
     SITE_KEY = "madlan"
 
-    def __init__(self, raw_snapshot_dir: Path | None = None):
+    def __init__(self, raw_snapshot_dir: Path | None = None, deal_type: str = "sale"):
         self.raw_snapshot_dir = raw_snapshot_dir
+        self.deal_type = deal_type if deal_type in MADLAN_SLUGS else "sale"
+        self.slug = MADLAN_SLUGS[self.deal_type]            # "for-sale" | "for-rent"
+        self.px_deal = MADLAN_DEAL_PARAM[self.deal_type]    # "unitBuy" | "unitRent"
         self.cookies = self._load_cookies()
 
     def _load_cookies(self) -> dict[str, str]:
@@ -188,7 +196,7 @@ class MadlanScraper:
         Returns (bulletins, cursor, total).
         """
         url = (
-            f"{BASE_URL}/for-sale/{city_docid}"
+            f"{BASE_URL}/{self.slug}/{city_docid}"
             "?tracking_search_source=new_search&marketplace=residential"
         )
         try:
@@ -226,7 +234,7 @@ class MadlanScraper:
     ) -> tuple[list[dict], dict | None]:
         """POST searchPoi to /api2 to fetch the next page using the cursor."""
         variables = {
-            "dealType": "unitBuy",
+            "dealType": self.px_deal,
             "poiTypes": ["bulletin", "project"],
             "searchContext": "marketplace",
             "sort": [{
@@ -259,7 +267,7 @@ class MadlanScraper:
                     "Content-Type": "application/json",
                     "Accept": "*/*",
                     "Origin": BASE_URL,
-                    "Referer": f"{BASE_URL}/for-sale/{city_docid}?tracking_search_source=new_search&marketplace=residential",
+                    "Referer": f"{BASE_URL}/{self.slug}/{city_docid}?tracking_search_source=new_search&marketplace=residential",
                     "X-Requested-With": "XMLHttpRequest",
                 },
             )
@@ -320,8 +328,7 @@ class MadlanScraper:
 
     # ── Normalization ────────────────────────────────────────────────────────
 
-    @staticmethod
-    def _normalize(b: dict) -> dict | None:
+    def _normalize(self, b: dict) -> dict | None:
         try:
             ad = b.get("addressDetails") or {}
             loc = b.get("locationPoint") or {}
@@ -372,6 +379,7 @@ class MadlanScraper:
                 "lon": _safe_float((loc or {}).get("lng")),
                 "last_seen": now,
                 "is_active": True,
+                "deal_type": self.deal_type,
             }
         except Exception as e:
             logger.debug(f"normalize error: {e}")
@@ -417,15 +425,20 @@ class MadlanScraper:
         # On headless servers (no $DISPLAY), fall back to headless=True; the saved
         # session cookies usually carry enough auth to bypass fingerprinting.
         import os
-        use_headless = not bool(os.environ.get("DISPLAY"))
+        # PerimeterX fingerprints headless Chromium and challenges it even with a
+        # valid session, so run HEADED wherever a display exists. Windows (the
+        # residential scrape host) always has one; on Linux fall back to $DISPLAY.
+        use_headless = os.name != "nt" and not bool(os.environ.get("DISPLAY"))
         if use_headless:
-            logger.info("No $DISPLAY detected — using headless=True for Madlan (server mode)")
+            logger.info("No display — using headless=True for Madlan (server mode; PX may block)")
+        else:
+            logger.info("Display available — running Madlan headed to pass PerimeterX")
         playwright, browser, context = await get_context("madlan", headless=use_headless)
         try:
             page = await context.new_page()
             for i, city_docid in enumerate(cities):
                 url = (
-                    f"{BASE_URL}/for-sale/{city_docid}"
+                    f"{BASE_URL}/{self.slug}/{city_docid}"
                     "?tracking_search_source=new_search&marketplace=residential"
                 )
                 try:
@@ -503,9 +516,9 @@ class MadlanScraper:
                         tile_n += 1
                         batch = await page.evaluate(
                             """async (args) => {
-                                const { tile, query, limit } = args;
+                                const { tile, query, limit, dealType } = args;
                                 const variables = {
-                                    dealType: "unitBuy",
+                                    dealType: dealType,
                                     poiTypes: ["bulletin"],
                                     searchContext: "marketplace",
                                     tileRanges: [tile],
@@ -526,7 +539,7 @@ class MadlanScraper:
                                     return json?.data?.searchPoiV2 || { error: 'no data' };
                                 } catch(e) { return { error: String(e) }; }
                             }""",
-                            {"tile": tile, "query": SEARCH_POI_QUERY, "limit": LIMIT},
+                            {"tile": tile, "query": SEARCH_POI_QUERY, "limit": LIMIT, "dealType": self.px_deal},
                         )
                         if not batch or batch.get("error"):
                             logger.warning(f"  [{city_docid}] tile #{tile_n} (d={depth}) error: {batch}")
@@ -675,7 +688,12 @@ async def scrape_madlan_listings(
     raw_snapshot_dir: Path | None = None,
     cities: list[str] | None = None,
     unattended: bool = False,
+    deal_type: str = "sale",
 ) -> list[dict]:
-    """Public entry: scrape Madlan listings across major Israeli cities (Playwright path)."""
-    scraper = MadlanScraper(raw_snapshot_dir=raw_snapshot_dir)
+    """Public entry: scrape Madlan listings across major Israeli cities (Playwright path).
+
+    deal_type: "sale" (unitBuy, /for-sale/) or "rent" (unitRent, /for-rent/);
+    every returned row is tagged with ``deal_type``.
+    """
+    scraper = MadlanScraper(raw_snapshot_dir=raw_snapshot_dir, deal_type=deal_type)
     return await scraper.scrape_playwright(cities, unattended=unattended)
