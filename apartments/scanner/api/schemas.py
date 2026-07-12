@@ -31,6 +31,7 @@ class Listing(BaseModel):
     has_elevator: Optional[bool] = None
     has_parking: Optional[bool] = None
     has_mamad: Optional[bool] = None
+    property_condition: Optional[int] = None
 
 
 class ListingScore(BaseModel):

@@ -12,22 +12,17 @@ import { DesktopLayout } from "@/layouts/DesktopLayout";
 import { MobileLayout } from "@/layouts/MobileLayout";
 import { isMobile as detectMobile } from "@/services/platform";
 import { haversineMeters } from "@/services/format";
-import { BUS_826_TLV_YOKNEAM } from "@/services/busLine826";
+import { SAVIDOR, SAVIDOR_RADIUS_M, RENOVATED_CONDITION_IDS } from "@/services/pois";
 import type { DealType } from "@/types";
 
-// A listing is "near line 826" if within this many metres of any of its stops.
-const BUS_826_RADIUS_M = 1500;
 // Listings priced below this are junk (parking spots / storage / bad data),
 // not real apartments — drop them everywhere.
 const MIN_REAL_PRICE = 2000;
 // Rent above this ₪/mo is out of scope (luxury / mis-listed) — drop in rent mode.
 const MAX_RENT = 15000;
-function isNearBus826(lat?: number | null, lon?: number | null): boolean {
+function isNearSavidor(lat?: number | null, lon?: number | null): boolean {
   if (lat == null || lon == null) return false;
-  for (const s of BUS_826_TLV_YOKNEAM) {
-    if (haversineMeters(lat, lon, s.lat, s.lon) <= BUS_826_RADIUS_M) return true;
-  }
-  return false;
+  return haversineMeters(lat, lon, SAVIDOR.lat, SAVIDOR.lon) <= SAVIDOR_RADIUS_M;
 }
 
 export function MapPage({ mode = "sale" }: { mode?: DealType }) {
@@ -38,9 +33,10 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
   const [gpsEnabled, setGpsEnabled] = useState<boolean>(() => detectMobile());
   const [follow, setFollow] = useState(true);
   const [zonesVisible, setZonesVisible] = useState(true);
-  const [busVisible, setBusVisible] = useState(false);
-  // Default focus: rentals along the 826 line (around Tel Aviv / Herzliya).
-  const [nearBus826, setNearBus826] = useState(true);
+  // Default focus: rentals within walking distance of Savidor's taxi station.
+  const [nearSavidor, setNearSavidor] = useState(true);
+  // Renovated preset: only משופץ / חדש condition listings.
+  const [renovatedOnly, setRenovatedOnly] = useState(false);
   const { coords, error: gpsError } = useGeolocation(gpsEnabled);
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -89,10 +85,15 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
   //   - Top deals preset overrides everything: order by gap ascending.
   //   - Otherwise, if we have a center, sort closest first.
   const filteredListings = (() => {
-    // Optional spatial filter: only listings within ~800m of a line-826 stop.
-    const base = nearBus826
-      ? withDistance.filter((l) => isNearBus826(l.lat, l.lon))
+    // Optional spatial filter: only listings near Savidor's taxi station.
+    let base = nearSavidor
+      ? withDistance.filter((l) => isNearSavidor(l.lat, l.lon))
       : withDistance;
+    if (renovatedOnly) {
+      base = base.filter(
+        (l) => l.property_condition != null && RENOVATED_CONDITION_IDS.includes(l.property_condition),
+      );
+    }
     if (dealsEnabled && filters.top_deals_only) {
       return base
         .filter((l) => l.score?.gap_percent != null && l.score.gap_percent <= -10)
@@ -123,7 +124,7 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
     <MapView
       listings={filteredListings}
       zones={zonesVisible ? zonesQuery.data : null}
-      showBus={busVisible || nearBus826}
+      showSavidor={nearSavidor}
       gps={coords}
       onListingClick={(id) => {
         setSelected(id);
@@ -214,10 +215,10 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
         gpsToggle={gpsToggle}
         zonesVisible={zonesVisible}
         onZonesToggle={() => setZonesVisible((v) => !v)}
-        busVisible={busVisible}
-        onBusToggle={() => setBusVisible((v) => !v)}
-        nearBus826={nearBus826}
-        onNearBusToggle={() => setNearBus826((v) => !v)}
+        nearSavidor={nearSavidor}
+        onSavidorToggle={() => setNearSavidor((v) => !v)}
+        renovatedOnly={renovatedOnly}
+        onRenovatedToggle={() => setRenovatedOnly((v) => !v)}
         onRefresh={() => {
           listings.refetch();
           zonesQuery.refetch();
@@ -238,20 +239,20 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
           🏛 Zones
         </button>
         <button
-          onClick={() => setBusVisible((v) => !v)}
+          onClick={() => setNearSavidor((v) => !v)}
           className={`min-h-[36px] rounded-full px-3 py-1 text-sm shadow ${
-            busVisible ? "bg-amber-500 text-white" : "bg-slate-800 text-slate-300"
+            nearSavidor ? "bg-amber-600 text-white" : "bg-slate-800 text-slate-300"
           }`}
         >
-          🚌 826
+          🚕 סבידור
         </button>
         <button
-          onClick={() => setNearBus826((v) => !v)}
+          onClick={() => setRenovatedOnly((v) => !v)}
           className={`min-h-[36px] rounded-full px-3 py-1 text-sm shadow ${
-            nearBus826 ? "bg-amber-600 text-white" : "bg-slate-800 text-slate-300"
+            renovatedOnly ? "bg-sky-600 text-white" : "bg-slate-800 text-slate-300"
           }`}
         >
-          📍 Near 826
+          🛠 משופץ
         </button>
         <MapLegend mode={mode} />
         {gpsToggle}

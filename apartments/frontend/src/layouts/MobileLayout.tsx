@@ -14,10 +14,10 @@ interface Props {
   gpsToggle: ReactNode;
   zonesVisible: boolean;
   onZonesToggle: () => void;
-  busVisible: boolean;
-  onBusToggle: () => void;
-  nearBus826: boolean;
-  onNearBusToggle: () => void;
+  nearSavidor: boolean;
+  onSavidorToggle: () => void;
+  renovatedOnly: boolean;
+  onRenovatedToggle: () => void;
   onRefresh: () => void;
   loading: boolean;
 }
@@ -44,10 +44,10 @@ export function MobileLayout({
   gpsToggle,
   zonesVisible,
   onZonesToggle,
-  busVisible,
-  onBusToggle,
-  nearBus826,
-  onNearBusToggle,
+  nearSavidor,
+  onSavidorToggle,
+  renovatedOnly,
+  onRenovatedToggle,
   onRefresh,
   loading,
 }: Props) {
@@ -68,20 +68,20 @@ export function MobileLayout({
           🏛 Zones
         </button>
         <button
-          onClick={onBusToggle}
+          onClick={onSavidorToggle}
           className={`pointer-events-auto min-h-[36px] rounded-full px-3 py-1 text-xs font-medium shadow ${
-            busVisible ? "bg-amber-500 text-white" : "bg-slate-900/90 text-slate-200"
+            nearSavidor ? "bg-amber-600 text-white" : "bg-slate-900/90 text-slate-200"
           }`}
         >
-          🚌 826
+          🚕 סבידור
         </button>
         <button
-          onClick={onNearBusToggle}
+          onClick={onRenovatedToggle}
           className={`pointer-events-auto min-h-[36px] rounded-full px-3 py-1 text-xs font-medium shadow ${
-            nearBus826 ? "bg-amber-600 text-white" : "bg-slate-900/90 text-slate-200"
+            renovatedOnly ? "bg-sky-600 text-white" : "bg-slate-900/90 text-slate-200"
           }`}
         >
-          📍 Near 826
+          🛠 משופץ
         </button>
         <button
           onClick={onRefresh}

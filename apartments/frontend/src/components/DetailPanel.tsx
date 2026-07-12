@@ -5,6 +5,7 @@ import { fetchBuildingHistory, fetchPriceHistory } from "@/api/charts";
 import { fmtPercent, fmtPpsqm, fmtAmount, fmtMoney } from "@/services/format";
 import { PriceHistoryChart } from "@/components/PriceHistoryChart";
 import { BuildingHistoryChart } from "@/components/BuildingHistoryChart";
+import { CONDITION_LABEL } from "@/services/pois";
 
 interface Props {
   listingId: string;
@@ -192,6 +193,10 @@ export function DetailPanel({ listingId, onClose }: Props) {
           </div>
           <dl className="grid grid-cols-2 gap-y-1 text-sm">
             <FieldRow label="Floor" value={l.floor} />
+            <FieldRow
+              label="מצב הנכס"
+              value={l.property_condition != null ? CONDITION_LABEL[l.property_condition] ?? `#${l.property_condition}` : null}
+            />
             <FieldRow label="Type" value={constructionText} />
             <FieldRow label="Balcony" value={balconyText} />
             <FieldRow label="Direction" value={l.direction} />

@@ -452,6 +452,8 @@ class Yad2Scraper:
             details = item.get("additionalDetails", {})
             sqm = _safe_float(details.get("squareMeter"))
             rooms = _safe_float(details.get("roomsCount"))
+            # מצב הנכס: 1=חדש מקבלן, 2=משופץ, 3=במצב שמור, 6=חדש (verified 2026-07)
+            condition = _safe_int((details.get("propertyCondition") or {}).get("id"))
 
             price = _parse_price(item.get("price", 0))
             token = item.get("token", "")
@@ -479,6 +481,7 @@ class Yad2Scraper:
                 "last_seen": now,
                 "is_active": True,
                 "deal_type": self.deal_type,
+                "property_condition": condition,
             }
         except Exception as e:
             logger.debug(f"Map normalization error: {e}")

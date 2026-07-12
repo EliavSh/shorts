@@ -4,7 +4,6 @@ import {
   CircleMarker,
   MapContainer,
   Marker,
-  Polyline,
   TileLayer,
   Tooltip,
   useMap,
@@ -14,7 +13,7 @@ import L from "leaflet";
 import type { GpsCoords, ListingWithScore } from "@/types";
 import type { ZonesCollection } from "@/api/zones";
 import { ZonesLayer } from "@/components/ZonesLayer";
-import { BUS_826_TLV_YOKNEAM } from "@/services/busLine826";
+import { SAVIDOR, SAVIDOR_RADIUS_M } from "@/services/pois";
 
 // Bucket markers into ~300 m grid cells; cluster when ≥7.
 const GRID_DEG = 0.003;
@@ -134,22 +133,23 @@ function pinIcon(
   });
 }
 
-// Bus line 826 (Tel Aviv → Yokneam) overlay: route polyline + labelled stops.
-function BusLine826Layer() {
-  const path = BUS_826_TLV_YOKNEAM.map((s) => [s.lat, s.lon] as [number, number]);
+// סבידור תחנת מוניות overlay: a marker at the Savidor taxi station plus the
+// filter-radius circle, so "near Savidor" is visible on the map.
+function SavidorMarker() {
   return (
     <>
-      <Polyline positions={path} pathOptions={{ color: "#f59e0b", weight: 3, opacity: 0.65 }} />
-      {BUS_826_TLV_YOKNEAM.map((s) => (
-        <CircleMarker
-          key={s.seq}
-          center={[s.lat, s.lon]}
-          radius={5}
-          pathOptions={{ color: "#b45309", fillColor: "#f59e0b", fillOpacity: 1, weight: 2 }}
-        >
-          <Tooltip direction="top">{`🚌 826 · ${s.seq}. ${s.name} (${s.city})`}</Tooltip>
-        </CircleMarker>
-      ))}
+      <Circle
+        center={[SAVIDOR.lat, SAVIDOR.lon]}
+        radius={SAVIDOR_RADIUS_M}
+        pathOptions={{ color: "#d97706", fillColor: "#f59e0b", fillOpacity: 0.05, weight: 1.5, dashArray: "6 6" }}
+      />
+      <CircleMarker
+        center={[SAVIDOR.lat, SAVIDOR.lon]}
+        radius={8}
+        pathOptions={{ color: "#92400e", fillColor: "#f59e0b", fillOpacity: 1, weight: 3 }}
+      >
+        <Tooltip direction="top">🚕 סבידור — תחנת מוניות</Tooltip>
+      </CircleMarker>
     </>
   );
 }
@@ -157,7 +157,7 @@ function BusLine826Layer() {
 interface Props {
   listings: ListingWithScore[];
   zones?: ZonesCollection | null;
-  showBus?: boolean;
+  showSavidor?: boolean;
   gps?: GpsCoords | null;
   radiusMeters?: number;
   follow: boolean;
@@ -375,7 +375,7 @@ function MarkersLayer({
 export function MapView({
   listings,
   zones,
-  showBus = false,
+  showSavidor = false,
   gps,
   radiusMeters = 2000,
   follow,
@@ -418,7 +418,7 @@ export function MapView({
           onMapMove={onMapMove}
         />
         {zones && zones.features.length > 0 && <ZonesLayer zones={zones} />}
-        {showBus && <BusLine826Layer />}
+        {showSavidor && <SavidorMarker />}
         {gps && (
           <>
             <Marker position={[gps.lat, gps.lon]} icon={gpsIcon} />

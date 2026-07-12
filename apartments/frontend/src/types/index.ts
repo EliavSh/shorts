@@ -27,6 +27,8 @@ export interface Listing {
   has_elevator?: boolean | null;
   has_parking?: boolean | null;
   has_mamad?: boolean | null;
+  /** yad2 מצב הנכס id — see CONDITION_LABEL in services/pois.ts. */
+  property_condition?: number | null;
 }
 
 export type DealType = "sale" | "rent";

@@ -116,6 +116,9 @@ def init_schema(db: sqlite_utils.Database) -> None:
             db.execute("ALTER TABLE listings ADD COLUMN has_parking INTEGER")
         if "has_mamad" not in cols:
             db.execute("ALTER TABLE listings ADD COLUMN has_mamad INTEGER")
+        # yad2 מצב הנכס id (1=חדש מקבלן, 2=משופץ, 3=שמור, 6=חדש); from the bulk feed.
+        if "property_condition" not in cols:
+            db.execute("ALTER TABLE listings ADD COLUMN property_condition INTEGER")
     except Exception:
         pass
 
