@@ -372,7 +372,10 @@ class MadlanScraper:
                 "floor": _safe_int(b.get("floor")),
                 "price": int(price),
                 "price_per_sqm": round(price / sqm) if price and sqm else None,
-                "url": f"{BASE_URL}/listings/{doc_id}" if doc_id else f"{BASE_URL}/bulletin/{listing_id}",
+                # The real per-listing page keys on the bulletin id (a hash like
+                # "LSUO5GfNvu1"). The addressDetails.docId is a building/location
+                # slug (e.g. "דפנה-40-תל-אביב") that just redirects to the homepage.
+                "url": f"{BASE_URL}/listings/{listing_id}",
                 "posted_at": b.get("firstTimeSeen") or now,
                 "gush": None,
                 "lat": _safe_float((loc or {}).get("lat")),
