@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   Circle,
   CircleMarker,
   MapContainer,
   Marker,
+  Polyline,
   TileLayer,
   Tooltip,
   useMap,
@@ -13,7 +14,7 @@ import L from "leaflet";
 import type { GpsCoords, ListingWithScore } from "@/types";
 import type { ZonesCollection } from "@/api/zones";
 import { ZonesLayer } from "@/components/ZonesLayer";
-import { SAVIDOR, SAVIDOR_RADIUS_M } from "@/services/pois";
+import { LINE_836_STOPS, LINE_836_RADIUS_M, CORRIDOR_CENTER } from "@/services/pois";
 
 // Bucket markers into ~300 m grid cells; cluster when ≥7.
 const GRID_DEG = 0.003;
@@ -133,23 +134,29 @@ function pinIcon(
   });
 }
 
-// סבידור תחנת מוניות overlay: a marker at the Savidor taxi station plus the
-// filter-radius circle, so "near Savidor" is visible on the map.
-function SavidorMarker() {
+// Line-836 corridor overlay: the TLV→Herzliya stops (דרך נמיר), a connecting
+// polyline, and the filter-radius circle around each stop.
+function Line836Layer() {
+  const path = LINE_836_STOPS.map((s) => [s.lat, s.lon] as [number, number]);
   return (
     <>
-      <Circle
-        center={[SAVIDOR.lat, SAVIDOR.lon]}
-        radius={SAVIDOR_RADIUS_M}
-        pathOptions={{ color: "#d97706", fillColor: "#f59e0b", fillOpacity: 0.05, weight: 1.5, dashArray: "6 6" }}
-      />
-      <CircleMarker
-        center={[SAVIDOR.lat, SAVIDOR.lon]}
-        radius={8}
-        pathOptions={{ color: "#92400e", fillColor: "#f59e0b", fillOpacity: 1, weight: 3 }}
-      >
-        <Tooltip direction="top">🚕 סבידור — תחנת מוניות</Tooltip>
-      </CircleMarker>
+      <Polyline positions={path} pathOptions={{ color: "#d97706", weight: 3, opacity: 0.6 }} />
+      {LINE_836_STOPS.map((s, i) => (
+        <Fragment key={i}>
+          <Circle
+            center={[s.lat, s.lon]}
+            radius={LINE_836_RADIUS_M}
+            pathOptions={{ color: "#d97706", fillColor: "#f59e0b", fillOpacity: 0.04, weight: 1, dashArray: "5 6" }}
+          />
+          <CircleMarker
+            center={[s.lat, s.lon]}
+            radius={6}
+            pathOptions={{ color: "#92400e", fillColor: "#f59e0b", fillOpacity: 1, weight: 2 }}
+          >
+            <Tooltip direction="top">{`🚌 836 · ${s.name}`}</Tooltip>
+          </CircleMarker>
+        </Fragment>
+      ))}
     </>
   );
 }
@@ -157,7 +164,7 @@ function SavidorMarker() {
 interface Props {
   listings: ListingWithScore[];
   zones?: ZonesCollection | null;
-  showSavidor?: boolean;
+  show836?: boolean;
   gps?: GpsCoords | null;
   radiusMeters?: number;
   follow: boolean;
@@ -375,7 +382,7 @@ function MarkersLayer({
 export function MapView({
   listings,
   zones,
-  showSavidor = false,
+  show836 = false,
   gps,
   radiusMeters = 2000,
   follow,
@@ -391,7 +398,7 @@ export function MapView({
   const center: [number, number] = useMemo(() => {
     if (gps) return [gps.lat, gps.lon];
     // Default focus: the Herzliya–Tel Aviv corridor (the area of interest).
-    return [32.12, 34.82];
+    return [CORRIDOR_CENTER.lat, CORRIDOR_CENTER.lon];
   }, [gps]);
 
   return (
@@ -418,7 +425,7 @@ export function MapView({
           onMapMove={onMapMove}
         />
         {zones && zones.features.length > 0 && <ZonesLayer zones={zones} />}
-        {showSavidor && <SavidorMarker />}
+        {show836 && <Line836Layer />}
         {gps && (
           <>
             <Marker position={[gps.lat, gps.lon]} icon={gpsIcon} />

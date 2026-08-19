@@ -12,7 +12,7 @@ import { DesktopLayout } from "@/layouts/DesktopLayout";
 import { MobileLayout } from "@/layouts/MobileLayout";
 import { isMobile as detectMobile } from "@/services/platform";
 import { haversineMeters } from "@/services/format";
-import { SAVIDOR, SAVIDOR_RADIUS_M, RENOVATED_CONDITION_IDS } from "@/services/pois";
+import { LINE_836_STOPS, LINE_836_RADIUS_M, RENOVATED_CONDITION_IDS } from "@/services/pois";
 import type { DealType } from "@/types";
 
 // Listings priced below this are junk (parking spots / storage / bad data),
@@ -20,9 +20,13 @@ import type { DealType } from "@/types";
 const MIN_REAL_PRICE = 2000;
 // Rent above this ₪/mo is out of scope (luxury / mis-listed) — drop in rent mode.
 const MAX_RENT = 15000;
-function isNearSavidor(lat?: number | null, lon?: number | null): boolean {
+// On the line-836 corridor = within radius of any TLV/Herzliya stop.
+function isNear836(lat?: number | null, lon?: number | null): boolean {
   if (lat == null || lon == null) return false;
-  return haversineMeters(lat, lon, SAVIDOR.lat, SAVIDOR.lon) <= SAVIDOR_RADIUS_M;
+  for (const s of LINE_836_STOPS) {
+    if (haversineMeters(lat, lon, s.lat, s.lon) <= LINE_836_RADIUS_M) return true;
+  }
+  return false;
 }
 
 export function MapPage({ mode = "sale" }: { mode?: DealType }) {
@@ -33,8 +37,8 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
   const [gpsEnabled, setGpsEnabled] = useState<boolean>(() => detectMobile());
   const [follow, setFollow] = useState(true);
   const [zonesVisible, setZonesVisible] = useState(true);
-  // Default focus: rentals within walking distance of Savidor's taxi station.
-  const [nearSavidor, setNearSavidor] = useState(true);
+  // Default focus: TLV + Herzliya along the line-836 (דרך נמיר) corridor.
+  const [near836, setNear836] = useState(true);
   // Renovated preset: only משופץ / חדש condition listings.
   const [renovatedOnly, setRenovatedOnly] = useState(false);
   const { coords, error: gpsError } = useGeolocation(gpsEnabled);
@@ -85,9 +89,9 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
   //   - Top deals preset overrides everything: order by gap ascending.
   //   - Otherwise, if we have a center, sort closest first.
   const filteredListings = (() => {
-    // Optional spatial filter: only listings near Savidor's taxi station.
-    let base = nearSavidor
-      ? withDistance.filter((l) => isNearSavidor(l.lat, l.lon))
+    // Optional spatial filter: only listings on the line-836 corridor.
+    let base = near836
+      ? withDistance.filter((l) => isNear836(l.lat, l.lon))
       : withDistance;
     if (renovatedOnly) {
       base = base.filter(
@@ -124,7 +128,7 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
     <MapView
       listings={filteredListings}
       zones={zonesVisible ? zonesQuery.data : null}
-      showSavidor={nearSavidor}
+      show836={near836}
       gps={coords}
       onListingClick={(id) => {
         setSelected(id);
@@ -215,8 +219,8 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
         gpsToggle={gpsToggle}
         zonesVisible={zonesVisible}
         onZonesToggle={() => setZonesVisible((v) => !v)}
-        nearSavidor={nearSavidor}
-        onSavidorToggle={() => setNearSavidor((v) => !v)}
+        near836={near836}
+        on836Toggle={() => setNear836((v) => !v)}
         renovatedOnly={renovatedOnly}
         onRenovatedToggle={() => setRenovatedOnly((v) => !v)}
         onRefresh={() => {
@@ -239,12 +243,12 @@ export function MapPage({ mode = "sale" }: { mode?: DealType }) {
           🏛 Zones
         </button>
         <button
-          onClick={() => setNearSavidor((v) => !v)}
+          onClick={() => setNear836((v) => !v)}
           className={`min-h-[36px] rounded-full px-3 py-1 text-sm shadow ${
-            nearSavidor ? "bg-amber-600 text-white" : "bg-slate-800 text-slate-300"
+            near836 ? "bg-amber-600 text-white" : "bg-slate-800 text-slate-300"
           }`}
         >
-          🚕 סבידור
+          🚌 קו 836
         </button>
         <button
           onClick={() => setRenovatedOnly((v) => !v)}

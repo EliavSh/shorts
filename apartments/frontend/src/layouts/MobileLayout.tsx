@@ -14,8 +14,8 @@ interface Props {
   gpsToggle: ReactNode;
   zonesVisible: boolean;
   onZonesToggle: () => void;
-  nearSavidor: boolean;
-  onSavidorToggle: () => void;
+  near836: boolean;
+  on836Toggle: () => void;
   renovatedOnly: boolean;
   onRenovatedToggle: () => void;
   onRefresh: () => void;
@@ -44,8 +44,8 @@ export function MobileLayout({
   gpsToggle,
   zonesVisible,
   onZonesToggle,
-  nearSavidor,
-  onSavidorToggle,
+  near836,
+  on836Toggle,
   renovatedOnly,
   onRenovatedToggle,
   onRefresh,
@@ -68,12 +68,12 @@ export function MobileLayout({
           🏛 Zones
         </button>
         <button
-          onClick={onSavidorToggle}
+          onClick={on836Toggle}
           className={`pointer-events-auto min-h-[36px] rounded-full px-3 py-1 text-xs font-medium shadow ${
-            nearSavidor ? "bg-amber-600 text-white" : "bg-slate-900/90 text-slate-200"
+            near836 ? "bg-amber-600 text-white" : "bg-slate-900/90 text-slate-200"
           }`}
         >
-          🚕 סבידור
+          🚌 קו 836
         </button>
         <button
           onClick={onRenovatedToggle}
